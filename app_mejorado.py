@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date
 
 # ---------- CONFIG ----------
 CSV_FILE = 'datos_peso.csv'
@@ -9,11 +9,12 @@ EXCEL_FILE = 'datos_peso.xlsx'
 # ---------- CARGAR DATOS EXISTENTES ----------
 try:
     df = pd.read_csv(CSV_FILE)
-    if 'Fecha' in df.columns:
-        df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-        df = df[df['Fecha'].notnull()]
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df = df[df['Fecha'].notnull()]
 except FileNotFoundError:
-    df = pd.DataFrame(columns=['Fecha', 'Peso', 'Kcal'])
+    df = pd.DataFrame({'Fecha': pd.Series(dtype='datetime64[ns]'),
+                       'Peso': pd.Series(dtype='float'),
+                       'Kcal': pd.Series(dtype='float')})
 
 # ---------- INPUTS ----------
 st.title('Seguimiento de Peso y Kcal (mejorado)')
@@ -30,27 +31,24 @@ if registro_existente:
     st.warning('Ya existe un registro para esta fecha. Al guardar, se sobrescribirá.')
 
 if st.button('Guardar'):
-    nueva_fila = pd.DataFrame({'Fecha': [fecha], 'Peso': [peso], 'Kcal': [kcal]})
-    df = df[df['Fecha'] != pd.to_datetime(fecha)]  # Eliminar fila existente si la hay
+    nueva_fila = pd.DataFrame({'Fecha': [pd.to_datetime(fecha)],
+                               'Peso': [peso],
+                               'Kcal': [kcal]})
+    df = df[df['Fecha'] != pd.to_datetime(fecha)]
     df = pd.concat([df, nueva_fila], ignore_index=True)
 
-    # Convertir fechas y filtrar nulos antes de ordenar
-    if 'Fecha' in df.columns:
-        df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-        df = df[df['Fecha'].notnull()]
-        if not df.empty:
-            df = df.sort_values('Fecha')
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df = df[df['Fecha'].notnull()]
+    df = df.sort_values('Fecha')
 
-    # Guardar CSV y Excel
+    # Guardar
     df.to_csv(CSV_FILE, index=False)
     df.to_excel(EXCEL_FILE, index=False)
 
     st.success('Datos guardados correctamente. Recarga la página para ver las actualizaciones.')
 
 # ---------- CÁLCULOS ----------
-if not df.empty and len(df) > 1 and 'Fecha' in df.columns:
-    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-    df = df[df['Fecha'].notnull()]
+if not df.empty and len(df) > 1:
     df = df.sort_values('Fecha')
 
     peso_inicio = df.iloc[0]['Peso']
