@@ -12,9 +12,11 @@ try:
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df[df['Fecha'].notnull()]
 except FileNotFoundError:
-    df = pd.DataFrame({'Fecha': pd.Series(dtype='datetime64[ns]'),
-                       'Peso': pd.Series(dtype='float'),
-                       'Kcal': pd.Series(dtype='float')})
+    df = pd.DataFrame({
+        'Fecha': pd.Series(dtype='datetime64[ns]'),
+        'Peso': pd.Series(dtype='float'),
+        'Kcal': pd.Series(dtype='float')
+    })
 
 # ---------- INPUTS ----------
 st.title('Seguimiento de Peso y Kcal (mejorado)')
@@ -31,9 +33,11 @@ if registro_existente:
     st.warning('Ya existe un registro para esta fecha. Al guardar, se sobrescribirá.')
 
 if st.button('Guardar'):
-    nueva_fila = pd.DataFrame({'Fecha': [pd.to_datetime(fecha)],
-                               'Peso': [peso],
-                               'Kcal': [kcal]})
+    nueva_fila = pd.DataFrame({
+        'Fecha': [pd.to_datetime(fecha)],
+        'Peso': [float(peso)],
+        'Kcal': [float(kcal)]
+    })
     df = df[df['Fecha'] != pd.to_datetime(fecha)]
     df = pd.concat([df, nueva_fila], ignore_index=True)
 
@@ -41,7 +45,6 @@ if st.button('Guardar'):
     df = df[df['Fecha'].notnull()]
     df = df.sort_values('Fecha')
 
-    # Guardar
     df.to_csv(CSV_FILE, index=False)
     df.to_excel(EXCEL_FILE, index=False)
 
@@ -92,10 +95,9 @@ if not df.empty and len(df) > 1:
     st.write(f"Días en déficit: {dias_deficit}") 
     st.write(f"Días en superávit: {dias_superavit}") 
 
-    # Proyección hacia objetivo
     if deficit_actual != 0:
         kg_a_perder = peso_actual - objetivo_peso
-        dias_estimados_objetivo = (kg_a_perder * 7700) / deficit_actual if deficit_actual != 0 else float('inf')
+        dias_estimados_objetivo = (kg_a_perder * 7700) / deficit_actual
         dias_estimados_objetivo = max(0, dias_estimados_objetivo)
     else:
         dias_estimados_objetivo = float('inf')
@@ -112,12 +114,8 @@ if not df.empty and len(df) > 1:
     porcentaje_progreso = max(0, min(1, (peso_inicio - peso_actual) / (peso_inicio - objetivo_peso))) if peso_inicio != objetivo_peso else 1
     st.progress(porcentaje_progreso)
 
-    # Gráfico con media móvil
     st.subheader('Tendencia de peso (con media móvil)')
     df_graf = df.copy()
-    df_graf['Fecha'] = pd.to_datetime(df_graf['Fecha'], errors='coerce')
-    df_graf = df_graf[df_graf['Fecha'].notnull()]
-    df_graf = df_graf.sort_values('Fecha')
     df_graf['Media_movil'] = df_graf['Peso'].rolling(window=7, min_periods=1).mean()
 
     st.line_chart(df_graf.set_index('Fecha')[['Peso', 'Media_movil']])
