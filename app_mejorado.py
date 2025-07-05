@@ -70,6 +70,7 @@ with tab2:
         fecha_min = df['Fecha'].min().date()
         fecha_max = df['Fecha'].max().date()
         rango = st.slider("Selecciona el rango", min_value=fecha_min, max_value=fecha_max, value=(fecha_min, fecha_max))
+        st.write(f"Has seleccionado: {rango[0].strftime('%d-%m-%Y')} → {rango[1].strftime('%d-%m-%Y')}")
         df_rango = df[df['Fecha'].between(pd.Timestamp(rango[0]), pd.Timestamp(rango[1]))]
         
         if df_rango.empty:
