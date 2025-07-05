@@ -11,6 +11,7 @@ try:
     df = pd.read_csv(CSV_FILE)
     if 'Fecha' in df.columns:
         df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+        df = df[df['Fecha'].notnull()]
 except FileNotFoundError:
     df = pd.DataFrame(columns=['Fecha', 'Peso', 'Kcal'])
 
@@ -33,10 +34,12 @@ if st.button('Guardar'):
     df = df[df['Fecha'] != pd.to_datetime(fecha)]  # Eliminar fila existente si la hay
     df = pd.concat([df, nueva_fila], ignore_index=True)
 
-    # Convertir fechas antes de ordenar
+    # Convertir fechas y filtrar nulos antes de ordenar
     if 'Fecha' in df.columns:
         df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-    df = df.sort_values('Fecha')
+        df = df[df['Fecha'].notnull()]
+        if not df.empty:
+            df = df.sort_values('Fecha')
 
     # Guardar CSV y Excel
     df.to_csv(CSV_FILE, index=False)
@@ -45,7 +48,9 @@ if st.button('Guardar'):
     st.success('Datos guardados correctamente. Recarga la página para ver las actualizaciones.')
 
 # ---------- CÁLCULOS ----------
-if not df.empty and len(df) > 1:
+if not df.empty and len(df) > 1 and 'Fecha' in df.columns:
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df = df[df['Fecha'].notnull()]
     df = df.sort_values('Fecha')
 
     peso_inicio = df.iloc[0]['Peso']
@@ -112,7 +117,8 @@ if not df.empty and len(df) > 1:
     # Gráfico con media móvil
     st.subheader('Tendencia de peso (con media móvil)')
     df_graf = df.copy()
-    df_graf['Fecha'] = pd.to_datetime(df_graf['Fecha'])
+    df_graf['Fecha'] = pd.to_datetime(df_graf['Fecha'], errors='coerce')
+    df_graf = df_graf[df_graf['Fecha'].notnull()]
     df_graf = df_graf.sort_values('Fecha')
     df_graf['Media_movil'] = df_graf['Peso'].rolling(window=7, min_periods=1).mean()
 
