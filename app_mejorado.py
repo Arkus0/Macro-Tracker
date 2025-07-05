@@ -8,7 +8,9 @@ EXCEL_FILE = 'datos_peso.xlsx'
 
 # ---------- CARGAR DATOS EXISTENTES ----------
 try:
-    df = pd.read_csv(CSV_FILE, parse_dates=['Fecha'])
+    df = pd.read_csv(CSV_FILE)
+    if 'Fecha' in df.columns:
+        df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
 except FileNotFoundError:
     df = pd.DataFrame(columns=['Fecha', 'Peso', 'Kcal'])
 
@@ -31,8 +33,12 @@ if st.button('Guardar'):
     df = df[df['Fecha'] != pd.to_datetime(fecha)]  # Eliminar fila existente si la hay
     df = pd.concat([df, nueva_fila], ignore_index=True)
 
+    # Convertir fechas antes de ordenar
+    if 'Fecha' in df.columns:
+        df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df = df.sort_values('Fecha')
+
     # Guardar CSV y Excel
-    df.sort_values('Fecha', inplace=True)
     df.to_csv(CSV_FILE, index=False)
     df.to_excel(EXCEL_FILE, index=False)
 
