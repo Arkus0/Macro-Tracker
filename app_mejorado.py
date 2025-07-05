@@ -1,124 +1,146 @@
-import streamlit as st
-import pandas as pd
-from datetime import date
+import streamlit as st import pandas as pd import altair as alt from datetime import date
 
-# ---------- CONFIG ----------
-CSV_FILE = 'datos_peso.csv'
-EXCEL_FILE = 'datos_peso.xlsx'
+---------- SPLASH INICIAL ----------
 
-# ---------- CARGAR DATOS EXISTENTES ----------
+st.title("Pocket Diet") st.caption("by Jotacorp · Lightweight baby! 🏋️‍♂️🔥") st.markdown("---")
+
+---------- CONFIG ----------
+
+CSV_FILE = 'datos_peso.csv' EXCEL_FILE = 'datos_peso.xlsx'
+
+---------- CARGAR DATOS EXISTENTES ----------
+
+try: df = pd.read_csv(CSV_FILE) df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce') df = df[df['Fecha'].notnull()] except FileNotFoundError: df = pd.DataFrame({ 'Fecha': pd.Series(dtype='datetime64[ns]'), 'Peso': pd.Series(dtype='float'), 'Kcal': pd.Series(dtype='float') })
+
+---------- INPUTS ----------
+
+fecha = st.date_input('Fecha para registrar', value=date.today()) fecha_ts = pd.Timestamp(fecha)
+
+peso = st.number_input('Peso (kg)', min_value=0.0, max_value=300.0, step=0.1, value=None, placeholder="Introduce tu peso") kcal = st.number_input('Kcal consumidas', min_value=0, max_value=10000, step=10, value=None, placeholder="Introduce tus kcal") objetivo_peso = st.number_input('Peso objetivo final (kg)', min_value=30.0, max_value=300.0, step=0.1, value=70.0)
+
+Metas intermedias
+
+meta_1 = st.number_input('Meta intermedia 1 (kg)', min_value=30.0, max_value=300.0, step=0.1, value=80.0) meta_2 = st.number_input('Meta intermedia 2 (kg)', min_value=30.0, max_value=300.0, step=0.1, value=75.0)
+
+---------- VALIDACIÓN ----------
+
+registro_existente = not df[df['Fecha'] == fecha_ts].empty
+
+if registro_existente: st.warning('Ya existe un registro para esta fecha. Al guardar, se sobrescribirá.')
+
+if st.button('Guardar'): nueva_fila = pd.DataFrame({ 'Fecha': [fecha_ts], 'Peso': [float(peso)], 'Kcal': [float(kcal)] }) df = df[df['Fecha'] != fecha_ts] df = pd.concat([df, nueva_fila], ignore_index=True)
+
+df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+df = df[df['Fecha'].notnull()]
+df = df.sort_values('Fecha')
+
+df.to_csv(CSV_FILE, index=False)
 try:
-    df = pd.read_csv(CSV_FILE)
-    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-    df = df[df['Fecha'].notnull()]
-except FileNotFoundError:
-    df = pd.DataFrame({
-        'Fecha': pd.Series(dtype='datetime64[ns]'),
-        'Peso': pd.Series(dtype='float'),
-        'Kcal': pd.Series(dtype='float')
-    })
-
-# ---------- INPUTS ----------
-st.title('Seguimiento de Peso y Kcal (mejorado)')
-
-fecha = st.date_input('Fecha', value=date.today())
-peso = st.number_input('Peso (kg)', min_value=30.0, max_value=300.0, step=0.1)
-kcal = st.number_input('Kcal consumidas', min_value=500, max_value=10000, step=10)
-objetivo_peso = st.number_input('Peso objetivo (kg)', min_value=30.0, max_value=300.0, step=0.1, value=70.0)
-
-# ---------- VALIDACIÓN ----------
-registro_existente = not df[df['Fecha'] == pd.to_datetime(fecha)].empty
-
-if registro_existente:
-    st.warning('Ya existe un registro para esta fecha. Al guardar, se sobrescribirá.')
-
-if st.button('Guardar'):
-    nueva_fila = pd.DataFrame({
-        'Fecha': [pd.to_datetime(fecha)],
-        'Peso': [float(peso)],
-        'Kcal': [float(kcal)]
-    })
-    df = df[df['Fecha'] != pd.to_datetime(fecha)]
-    df = pd.concat([df, nueva_fila], ignore_index=True)
-
-    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-    df = df[df['Fecha'].notnull()]
-    df = df.sort_values('Fecha')
-
-    df.to_csv(CSV_FILE, index=False)
     df.to_excel(EXCEL_FILE, index=False)
+except PermissionError:
+    st.warning("⚠️ No se pudo guardar el archivo Excel porque está abierto. Ciérralo y vuelve a intentarlo.")
 
-    st.success('Datos guardados correctamente. Recarga la página para ver las actualizaciones.')
+st.success('Datos guardados correctamente. Recarga la página para ver las actualizaciones.')
 
-# ---------- CÁLCULOS ----------
-if not df.empty and len(df) > 1:
-    df = df.sort_values('Fecha')
+---------- ANÁLISIS ----------
 
-    peso_inicio = df.iloc[0]['Peso']
-    peso_actual = df.iloc[-1]['Peso']
-    dias = (df.iloc[-1]['Fecha'] - df.iloc[0]['Fecha']).days or 1
+if not df.empty and len(df) > 1: df = df.sort_values('Fecha')
+
+# ---------- FILTRO POR RANGO DE FECHAS ----------
+st.subheader("Análisis por rango de fechas")
+fecha_min = df['Fecha'].min().date()
+fecha_max = df['Fecha'].max().date()
+
+rango = st.slider("Selecciona el rango", min_value=fecha_min, max_value=fecha_max, value=(fecha_min, fecha_max))
+df_rango = df[df['Fecha'].between(pd.Timestamp(rango[0]), pd.Timestamp(rango[1]))]
+
+if df_rango.empty:
+    st.warning("No hay datos en el rango seleccionado.")
+else:
+    peso_trend = df_rango['Peso'].rolling(window=7, min_periods=1).mean().iloc[-1]
+
+    fecha_max_rango = df_rango['Fecha'].max()
+    fecha_min_4w = fecha_max_rango - pd.Timedelta(days=27)
+    df_4w = df_rango[df_rango['Fecha'].between(fecha_min_4w, fecha_max_rango)]
+    if df_4w.empty:
+        df_4w = df_rango.copy()
+
+    peso_inicio = df_4w.iloc[0]['Peso']
+    peso_actual = df_4w.iloc[-1]['Peso']
+    dias = (df_4w.iloc[-1]['Fecha'] - df_4w.iloc[0]['Fecha']).days or 1
 
     cambio_peso = peso_actual - peso_inicio
-    cambio_peso_kg = round(cambio_peso, 2)
-
-    total_kcal = df['Kcal'].sum()
-    kcal_diarias_prom = total_kcal / len(df)
+    total_kcal = df_4w['Kcal'].sum()
+    kcal_diarias_prom = total_kcal / len(df_4w)
 
     if dias > 0:
         kg_estimados_por_kcal = (cambio_peso * 7700) / dias
-        mantenimiento_estimado = kcal_diarias_prom - kg_estimados_por_kcal
+        tdee_dinamico = kcal_diarias_prom - kg_estimados_por_kcal
     else:
-        mantenimiento_estimado = kcal_diarias_prom
+        tdee_dinamico = kcal_diarias_prom
 
-    deficit_actual = mantenimiento_estimado - kcal_diarias_prom
+    # Tarjetas
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Peso tendencia", f"{peso_trend:.1f} kg")
+    col2.metric("TDEE dinámico", f"{tdee_dinamico:.0f} kcal")
+    col3.metric("Kcal promedio 4w", f"{kcal_diarias_prom:.0f} kcal")
 
-    # Estadísticas rápidas
-    peso_min = df['Peso'].min()
-    peso_max = df['Peso'].max()
-    peso_prom = df['Peso'].mean()
-    kcal_prom = df['Kcal'].mean()
+    # ---------- PANEL COMPARATIVO MENSUAL ----------
+    st.subheader("Comparativa mensual")
+    df_rango.set_index('Fecha', inplace=True)
+    mensual = df_rango.resample('M').mean().round(2)
+    df_rango.reset_index(inplace=True)
 
-    dias_deficit = len(df[df['Kcal'] < mantenimiento_estimado])
-    dias_superavit = len(df[df['Kcal'] > mantenimiento_estimado])
-
-    st.subheader('Resumen')
-    st.write(f"Cambio de peso: {cambio_peso_kg} kg en {dias} días") 
-    st.write(f"Kcal promedio: {kcal_diarias_prom:.0f}") 
-    st.write(f"Mantenimiento estimado: {mantenimiento_estimado:.0f} kcal/día") 
-    st.write(f"Déficit aproximado actual: {deficit_actual:.0f} kcal/día") 
-
-    st.subheader('Estadísticas rápidas')
-    st.write(f"Peso mínimo: {peso_min:.1f} kg") 
-    st.write(f"Peso máximo: {peso_max:.1f} kg") 
-    st.write(f"Peso promedio: {peso_prom:.1f} kg") 
-    st.write(f"Kcal promedio: {kcal_prom:.0f}") 
-    st.write(f"Días en déficit: {dias_deficit}") 
-    st.write(f"Días en superávit: {dias_superavit}") 
-
-    if deficit_actual != 0:
-        kg_a_perder = peso_actual - objetivo_peso
-        dias_estimados_objetivo = (kg_a_perder * 7700) / deficit_actual
-        dias_estimados_objetivo = max(0, dias_estimados_objetivo)
+    if len(mensual) > 1:
+        for i in range(1, len(mensual)):
+            peso_diff = mensual['Peso'].iloc[i] - mensual['Peso'].iloc[i-1]
+            kcal_diff = mensual['Kcal'].iloc[i] - mensual['Kcal'].iloc[i-1]
+            st.write(f"{mensual.index[i-1].strftime('%B')} → {mensual.index[i].strftime('%B')}: ")
+            st.write(f"- Peso: {mensual['Peso'].iloc[i-1]:.1f} kg → {mensual['Peso'].iloc[i]:.1f} kg (Δ {peso_diff:+.1f} kg)")
+            st.write(f"- Kcal: {mensual['Kcal'].iloc[i-1]:.0f} → {mensual['Kcal'].iloc[i]:.0f} (Δ {kcal_diff:+.0f} kcal)")
     else:
-        dias_estimados_objetivo = float('inf')
+        st.info("No hay datos suficientes para comparación mensual.")
 
-    st.subheader('Progreso hacia objetivo')
-    st.write(f"Peso actual: {peso_actual:.1f} kg") 
-    st.write(f"Peso objetivo: {objetivo_peso:.1f} kg") 
-
-    if dias_estimados_objetivo != float('inf'):
-        st.write(f"Días estimados para alcanzar el objetivo: {dias_estimados_objetivo:.0f}") 
-    else:
-        st.write("No hay déficit actual para estimar los días.") 
-
-    porcentaje_progreso = max(0, min(1, (peso_inicio - peso_actual) / (peso_inicio - objetivo_peso))) if peso_inicio != objetivo_peso else 1
-    st.progress(porcentaje_progreso)
-
-    st.subheader('Tendencia de peso (con media móvil)')
-    df_graf = df.copy()
+    # ---------- GRÁFICAS ----------
+    st.subheader('Gráfica de peso')
+    df_graf = df_rango.copy()
     df_graf['Media_movil'] = df_graf['Peso'].rolling(window=7, min_periods=1).mean()
 
-    st.line_chart(df_graf.set_index('Fecha')[['Peso', 'Media_movil']])
+    y_min = df_graf['Peso'].min() - 2
+    y_max = df_graf['Peso'].max() + 2
 
-else:
-    st.info('Agrega al menos dos registros para calcular tendencias y estimaciones.')
+    chart_peso = alt.Chart(df_graf).transform_fold(
+        ['Peso', 'Media_movil'],
+        as_=['Variable', 'Valor']
+    ).mark_line().encode(
+        x='Fecha:T',
+        y=alt.Y('Valor:Q', scale=alt.Scale(domain=[y_min, y_max])),
+        color='Variable:N'
+    ).properties(width=700, height=400)
+
+    st.altair_chart(chart_peso, use_container_width=True)
+
+    st.subheader('Gráfica de kcal vs TDEE')
+    df_graf['TDEE'] = tdee_dinamico
+    chart_kcal = alt.Chart(df_graf).transform_fold(
+        ['Kcal', 'TDEE'],
+        as_=['Variable', 'Valor']
+    ).mark_line().encode(
+        x='Fecha:T',
+        y='Valor:Q',
+        color='Variable:N'
+    ).properties(width=700, height=300)
+
+    st.altair_chart(chart_kcal, use_container_width=True)
+
+    # ---------- PROGRESO METAS ----------
+    st.subheader('Progreso hacia metas')
+    for meta, label in zip([meta_1, meta_2, objetivo_peso], ["Meta 1", "Meta 2", "Meta final"]):
+        if peso_inicio != meta:
+            porcentaje_meta = max(0, min(1, (peso_inicio - peso_actual) / (peso_inicio - meta)))
+        else:
+            porcentaje_meta = 1
+        st.write(f"{label}: {meta:.1f} kg")
+        st.progress(porcentaje_meta)
+
+else: st.info('Agrega al menos dos registros para mostrar resúmenes y gráficas.')
