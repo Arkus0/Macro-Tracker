@@ -11,7 +11,8 @@ st.markdown("---")
 
 #---------- CONFIG ----------
 
-CSV_FILE = 'datos_peso.csv' EXCEL_FILE = 'datos_peso.xlsx'
+CSV_FILE = 'datos_peso.csv' 
+EXCEL_FILE = 'datos_peso.xlsx'
 
 #---------- CARGAR DATOS EXISTENTES ----------
 
