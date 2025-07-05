@@ -5,7 +5,9 @@ from datetime import date
 
 #---------- SPLASH INICIAL ----------
 
-st.title("Pocket Diet") st.caption("by Jotacorp · Lightweight baby! 🏋️‍♂️🔥") st.markdown("---")
+st.title("Pocket Diet") 
+st.caption("by Jotacorp · Lightweight baby! 🏋️‍♂️") 
+st.markdown("---")
 
 #---------- CONFIG ----------
 
