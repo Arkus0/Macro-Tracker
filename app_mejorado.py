@@ -1,4 +1,7 @@
-import streamlit as st import pandas as pd import altair as alt from datetime import date
+import streamlit as st 
+import pandas as pd 
+import altair as alt 
+from datetime import date
 
 ---------- SPLASH INICIAL ----------
 
