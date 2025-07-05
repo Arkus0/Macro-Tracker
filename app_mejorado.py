@@ -3,19 +3,19 @@ import pandas as pd
 import altair as alt 
 from datetime import date
 
----------- SPLASH INICIAL ----------
+#---------- SPLASH INICIAL ----------
 
 st.title("Pocket Diet") st.caption("by Jotacorp · Lightweight baby! 🏋️‍♂️🔥") st.markdown("---")
 
----------- CONFIG ----------
+#---------- CONFIG ----------
 
 CSV_FILE = 'datos_peso.csv' EXCEL_FILE = 'datos_peso.xlsx'
 
----------- CARGAR DATOS EXISTENTES ----------
+#---------- CARGAR DATOS EXISTENTES ----------
 
 try: df = pd.read_csv(CSV_FILE) df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce') df = df[df['Fecha'].notnull()] except FileNotFoundError: df = pd.DataFrame({ 'Fecha': pd.Series(dtype='datetime64[ns]'), 'Peso': pd.Series(dtype='float'), 'Kcal': pd.Series(dtype='float') })
 
----------- INPUTS ----------
+#---------- INPUTS ----------
 
 fecha = st.date_input('Fecha para registrar', value=date.today()) fecha_ts = pd.Timestamp(fecha)
 
@@ -25,7 +25,7 @@ Metas intermedias
 
 meta_1 = st.number_input('Meta intermedia 1 (kg)', min_value=30.0, max_value=300.0, step=0.1, value=80.0) meta_2 = st.number_input('Meta intermedia 2 (kg)', min_value=30.0, max_value=300.0, step=0.1, value=75.0)
 
----------- VALIDACIÓN ----------
+#---------- VALIDACIÓN ----------
 
 registro_existente = not df[df['Fecha'] == fecha_ts].empty
 
@@ -45,7 +45,7 @@ except PermissionError:
 
 st.success('Datos guardados correctamente. Recarga la página para ver las actualizaciones.')
 
----------- ANÁLISIS ----------
+#---------- ANÁLISIS ----------
 
 if not df.empty and len(df) > 1: df = df.sort_values('Fecha')
 
