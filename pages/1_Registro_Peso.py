@@ -1,24 +1,12 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
+from auth import require_auth
+import db
+
+user_id = require_auth()
 
 st.title("Registro de Peso")
-
-CSV_FILE = "datos_peso.csv"
-
-# ---------- CARGAR DATOS ----------
-try:
-    df = pd.read_csv(CSV_FILE)
-    df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
-    df = df[df["Fecha"].notnull()]
-except FileNotFoundError:
-    df = pd.DataFrame(
-        {
-            "Fecha": pd.Series(dtype="datetime64[ns]"),
-            "Peso": pd.Series(dtype="float"),
-            "Kcal": pd.Series(dtype="float"),
-        }
-    )
 
 # ---------- INPUT ----------
 st.subheader("Nuevo registro")
@@ -36,30 +24,26 @@ with col_kcal:
         value=None, placeholder="Kcal del dia",
     )
 
-fecha_ts = pd.Timestamp(fecha)
-registro_existente = not df[df["Fecha"] == fecha_ts].empty
-
-if registro_existente:
+existing = db.get_weight_entry_by_date(user_id, fecha)
+if existing:
     st.warning("Ya existe un registro para esta fecha. Se sobrescribira.")
 
 if st.button("Guardar", type="primary"):
     if peso is None and kcal is None:
         st.error("Introduce al menos peso o kcal.")
     else:
-        nueva_fila = pd.DataFrame(
-            {"Fecha": [fecha_ts], "Peso": [peso], "Kcal": [kcal]}
-        )
-        df = df[df["Fecha"] != fecha_ts]
-        df = pd.concat([df, nueva_fila], ignore_index=True)
-        df = df.sort_values("Fecha")
-        df.to_csv(CSV_FILE, index=False)
+        db.save_weight_entry(user_id, fecha, peso=peso, kcal=kcal)
         st.success("Guardado correctamente.")
         st.rerun()
 
 # ---------- HISTORIAL ----------
-if not df.empty:
+entries = db.get_weight_entries(user_id, limit=14)
+if entries:
     st.markdown("---")
     st.subheader("Historial reciente")
-    df_display = df.sort_values("Fecha", ascending=False).head(14).copy()
-    df_display["Fecha"] = df_display["Fecha"].dt.strftime("%d-%m-%Y")
+    df_display = pd.DataFrame(entries)
+    df_display["fecha"] = pd.to_datetime(df_display["fecha"]).dt.strftime("%d-%m-%Y")
+    df_display = df_display[["fecha", "peso", "kcal"]].rename(
+        columns={"fecha": "Fecha", "peso": "Peso (kg)", "kcal": "Kcal"}
+    )
     st.dataframe(df_display, use_container_width=True, hide_index=True)
