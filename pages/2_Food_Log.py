@@ -2,29 +2,12 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import date, timedelta
+from auth import require_auth
+import db
+
+user_id = require_auth()
 
 st.title("Food Log")
-
-COMIDAS_FILE = "comidas.csv"
-CATALOGO_FILE = "catalogo_comidas.csv"
-
-# ---------- CARGAR DATOS ----------
-try:
-    df_comidas = pd.read_csv(COMIDAS_FILE)
-    df_comidas["Fecha"] = pd.to_datetime(df_comidas["Fecha"], errors="coerce").dt.date
-    if "Tipo" not in df_comidas.columns:
-        df_comidas["Tipo"] = ""
-except FileNotFoundError:
-    df_comidas = pd.DataFrame(
-        columns=["Fecha", "Tipo", "Comida", "Marca", "Gramos", "Kcal", "Proteinas", "Carbs", "Grasas"]
-    )
-
-try:
-    df_catalogo = pd.read_csv(CATALOGO_FILE)
-except FileNotFoundError:
-    df_catalogo = pd.DataFrame(
-        columns=["Comida", "Marca", "Kcal_100g", "Proteinas_100g", "Carbs_100g", "Grasas_100g"]
-    )
 
 # ---------- FECHA Y ACCIONES RAPIDAS ----------
 col_f, col_copy = st.columns([2, 1])
@@ -35,36 +18,61 @@ with col_copy:
     st.write("")
     if st.button("Copiar dia anterior"):
         dia_anterior = fecha - timedelta(days=1)
-        df_ayer = df_comidas[df_comidas["Fecha"] == dia_anterior]
-        if not df_ayer.empty:
-            copia = df_ayer.copy()
-            copia["Fecha"] = fecha
-            df_comidas = pd.concat([df_comidas, copia], ignore_index=True)
-            df_comidas.to_csv(COMIDAS_FILE, index=False)
+        entries_ayer = db.get_food_entries(user_id, dia_anterior)
+        if entries_ayer:
+            db.copy_food_entries(user_id, dia_anterior, fecha)
             st.success("Comidas copiadas del dia anterior.")
             st.rerun()
         else:
             st.info("No hay comidas en el dia anterior.")
 
 # ---------- TOTALES DEL DIA ----------
-df_dia = df_comidas[df_comidas["Fecha"] == fecha]
+entries_dia = db.get_food_entries(user_id, fecha)
 st.subheader("Totales del dia")
+total_kcal = sum(e.get("kcal", 0) or 0 for e in entries_dia)
+total_prot = sum(e.get("proteinas", 0) or 0 for e in entries_dia)
+total_carbs = sum(e.get("carbs", 0) or 0 for e in entries_dia)
+total_grasas = sum(e.get("grasas", 0) or 0 for e in entries_dia)
+
+# Show targets if available
+targets = db.get_active_targets(user_id, fecha)
+
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Kcal", f"{df_dia['Kcal'].sum():.0f}")
-col2.metric("Proteinas", f"{df_dia['Proteinas'].sum():.0f} g")
-col3.metric("Carbs", f"{df_dia['Carbs'].sum():.0f} g")
-col4.metric("Grasas", f"{df_dia['Grasas'].sum():.0f} g")
+kcal_label = f"{total_kcal:.0f}"
+if targets:
+    kcal_label += f" / {targets['kcal_target']}"
+col1.metric("Kcal", kcal_label)
+
+prot_label = f"{total_prot:.0f} g"
+if targets and targets.get("protein_target"):
+    prot_label += f" / {targets['protein_target']:.0f}"
+col2.metric("Proteinas", prot_label)
+
+carbs_label = f"{total_carbs:.0f} g"
+if targets and targets.get("carbs_target"):
+    carbs_label += f" / {targets['carbs_target']:.0f}"
+col3.metric("Carbs", carbs_label)
+
+grasas_label = f"{total_grasas:.0f} g"
+if targets and targets.get("fat_target"):
+    grasas_label += f" / {targets['fat_target']:.0f}"
+col4.metric("Grasas", grasas_label)
+
+# Target progress bars
+if targets:
+    if targets["kcal_target"] > 0:
+        pct = min(1.0, total_kcal / targets["kcal_target"])
+        st.progress(pct, text=f"Kcal: {pct*100:.0f}%")
 
 # ---------- COMIDAS POR TIPO ----------
-if not df_dia.empty:
+if entries_dia:
     for t in ["Desayuno", "Comida", "Cena", "Snack"]:
-        df_tipo = df_dia[df_dia["Tipo"] == t]
-        if not df_tipo.empty:
+        entries_tipo = [e for e in entries_dia if e.get("tipo") == t]
+        if entries_tipo:
             st.markdown(f"**{t}**")
-            st.dataframe(
-                df_tipo[["Comida", "Marca", "Gramos", "Kcal", "Proteinas", "Carbs", "Grasas"]],
-                use_container_width=True, hide_index=True,
-            )
+            df_tipo = pd.DataFrame(entries_tipo)[["comida", "marca", "gramos", "kcal", "proteinas", "carbs", "grasas"]]
+            df_tipo.columns = ["Comida", "Marca", "Gramos", "Kcal", "Proteinas", "Carbs", "Grasas"]
+            st.dataframe(df_tipo, use_container_width=True, hide_index=True)
 
 st.markdown("---")
 
@@ -72,7 +80,9 @@ st.markdown("---")
 st.subheader("Anadir alimento")
 tipo_comida = st.selectbox("Tipo de comida", ["Desayuno", "Comida", "Cena", "Snack"])
 
-tab_off, tab_catalog, tab_manual = st.tabs(["Buscar en Open Food Facts", "Catalogo personal", "Entrada manual"])
+tab_off, tab_freq, tab_catalog, tab_template, tab_manual = st.tabs([
+    "Open Food Facts", "Frecuentes", "Catalogo", "Templates", "Manual"
+])
 
 # Session state defaults
 for key in ["nombre_sel", "marca_sel", "kcal_sel", "prote_sel", "carbs_sel", "grasas_sel"]:
@@ -106,26 +116,82 @@ with tab_off:
         except requests.RequestException:
             st.error("Error al conectar con Open Food Facts.")
 
+with tab_freq:
+    frequent = db.get_frequent_foods(user_id)
+    if frequent:
+        for f in frequent:
+            label = f"{f['comida']} ({f['marca'] or ''}) — {f['freq']}x"
+            if st.button(label, key=f"freq_{f['comida']}_{f['marca']}"):
+                st.session_state["nombre_sel"] = f["comida"]
+                st.session_state["marca_sel"] = f["marca"] or ""
+                st.session_state["kcal_sel"] = int(f["kcal_100g"] or 0)
+                st.session_state["prote_sel"] = int(f["proteinas_100g"] or 0)
+                st.session_state["carbs_sel"] = int(f["carbs_100g"] or 0)
+                st.session_state["grasas_sel"] = int(f["grasas_100g"] or 0)
+                st.rerun()
+    else:
+        st.info("Aun no tienes alimentos frecuentes.")
+
 with tab_catalog:
-    if not df_catalogo.empty:
+    catalog = db.get_catalog(user_id)
+    if catalog:
         filtro = st.text_input("Filtrar catalogo", "")
-        df_filtrado = df_catalogo
+        filtered = catalog
         if filtro:
-            df_filtrado = df_catalogo[df_catalogo["Comida"].str.contains(filtro, case=False, na=False)]
-        if not df_filtrado.empty:
-            df_filtrado = df_filtrado.copy()
-            df_filtrado["Etiqueta"] = df_filtrado["Comida"] + " (" + df_filtrado["Marca"].fillna("") + ")"
-            seleccion = st.selectbox("Selecciona del catalogo", [""] + list(df_filtrado["Etiqueta"]))
+            filtered = [c for c in catalog if filtro.lower() in c["comida"].lower()]
+        if filtered:
+            options = [""] + [f"{c['comida']} ({c['marca'] or ''})" for c in filtered]
+            seleccion = st.selectbox("Selecciona del catalogo", options)
             if seleccion:
-                al = df_filtrado[df_filtrado["Etiqueta"] == seleccion].iloc[0]
-                st.session_state["nombre_sel"] = al["Comida"]
-                st.session_state["marca_sel"] = al["Marca"] if pd.notna(al["Marca"]) else ""
-                st.session_state["kcal_sel"] = int(al["Kcal_100g"])
-                st.session_state["prote_sel"] = int(al["Proteinas_100g"])
-                st.session_state["carbs_sel"] = int(al["Carbs_100g"])
-                st.session_state["grasas_sel"] = int(al["Grasas_100g"])
+                idx = options.index(seleccion) - 1
+                al = filtered[idx]
+                st.session_state["nombre_sel"] = al["comida"]
+                st.session_state["marca_sel"] = al["marca"] or ""
+                st.session_state["kcal_sel"] = int(al["kcal_100g"] or 0)
+                st.session_state["prote_sel"] = int(al["proteinas_100g"] or 0)
+                st.session_state["carbs_sel"] = int(al["carbs_100g"] or 0)
+                st.session_state["grasas_sel"] = int(al["grasas_100g"] or 0)
     else:
         st.info("Tu catalogo esta vacio. Anade comidas y marcalas como favoritas.")
+
+with tab_template:
+    templates = db.get_meal_templates(user_id)
+    if templates:
+        for tmpl in templates:
+            items = db.get_template_items(tmpl["id"])
+            total = sum(i.get("kcal", 0) or 0 for i in items)
+            label = f"{tmpl['name']} ({len(items)} items, {total:.0f} kcal) — usado {tmpl['use_count']}x"
+            col_t, col_del = st.columns([4, 1])
+            with col_t:
+                if st.button(f"Aplicar: {label}", key=f"tmpl_{tmpl['id']}"):
+                    db.use_meal_template(user_id, tmpl["id"], fecha, tipo_comida)
+                    st.success(f"Template '{tmpl['name']}' aplicado.")
+                    st.rerun()
+            with col_del:
+                if st.button("Eliminar", key=f"del_tmpl_{tmpl['id']}"):
+                    db.delete_meal_template(tmpl["id"])
+                    st.rerun()
+    else:
+        st.info("No tienes templates. Guarda comidas del dia como template abajo.")
+
+    # Save current meals as template
+    if entries_dia:
+        st.markdown("---")
+        tmpl_name = st.text_input("Nombre del template")
+        if st.button("Guardar comidas del dia como template"):
+            if tmpl_name:
+                items = [
+                    {"comida": e["comida"], "marca": e.get("marca", ""),
+                     "gramos": e.get("gramos", 0), "kcal": e.get("kcal", 0),
+                     "proteinas": e.get("proteinas", 0), "carbs": e.get("carbs", 0),
+                     "grasas": e.get("grasas", 0)}
+                    for e in entries_dia
+                ]
+                db.save_meal_template(user_id, tmpl_name, items)
+                st.success(f"Template '{tmpl_name}' guardado.")
+                st.rerun()
+            else:
+                st.error("Introduce un nombre para el template.")
 
 with tab_manual:
     st.info("Introduce los valores manualmente abajo.")
@@ -152,55 +218,29 @@ if st.button("Anadir comida", type="primary"):
     if not nombre:
         st.error("Introduce un nombre para la comida.")
     else:
-        nueva = pd.DataFrame(
-            {
-                "Fecha": [fecha],
-                "Tipo": [tipo_comida],
-                "Comida": [nombre],
-                "Marca": [marca],
-                "Gramos": [gramos],
-                "Kcal": [kcal_total],
-                "Proteinas": [prote_total],
-                "Carbs": [carbs_total],
-                "Grasas": [grasas_total],
-            }
+        db.add_food_entry(
+            user_id, fecha, tipo_comida, nombre, marca,
+            gramos, kcal_total, prote_total, carbs_total, grasas_total,
         )
-        df_comidas = pd.concat([df_comidas, nueva], ignore_index=True)
-        df_comidas.to_csv(COMIDAS_FILE, index=False)
         if guardar_catalogo:
-            existe = df_catalogo[
-                (df_catalogo["Comida"] == nombre) & (df_catalogo["Marca"] == marca)
-            ]
-            if existe.empty:
-                nuevo_cat = pd.DataFrame(
-                    {
-                        "Comida": [nombre],
-                        "Marca": [marca],
-                        "Kcal_100g": [kcal_100g],
-                        "Proteinas_100g": [prote_100g],
-                        "Carbs_100g": [carbs_100g],
-                        "Grasas_100g": [grasas_100g],
-                    }
-                )
-                df_catalogo = pd.concat([df_catalogo, nuevo_cat], ignore_index=True)
-                df_catalogo.to_csv(CATALOGO_FILE, index=False)
+            db.add_catalog_entry(user_id, nombre, marca, kcal_100g, prote_100g, carbs_100g, grasas_100g)
         st.success("Comida anadida.")
-        # Clear selection
         for key in ["nombre_sel", "marca_sel", "kcal_sel", "prote_sel", "carbs_sel", "grasas_sel"]:
             st.session_state[key] = "" if "nombre" in key or "marca" in key else 0
         st.rerun()
 
 # ---------- EDITAR / ELIMINAR ----------
-if not df_dia.empty:
+if entries_dia:
     st.markdown("---")
     st.subheader("Editar / Eliminar")
-    opciones = df_dia.apply(lambda r: f"{r['Comida']} ({r['Marca']}) - {r['Kcal']:.0f} kcal", axis=1)
-    seleccion_editar = st.selectbox("Selecciona comida", [""] + list(opciones))
+    opciones = {
+        f"{e['comida']} ({e.get('marca', '')}) - {e.get('kcal', 0):.0f} kcal": e["id"]
+        for e in entries_dia
+    }
+    seleccion_editar = st.selectbox("Selecciona comida", [""] + list(opciones.keys()))
     if seleccion_editar:
-        idx = opciones[opciones == seleccion_editar].index[0]
         if st.button("Eliminar esta comida"):
-            df_comidas = df_comidas.drop(idx)
-            df_comidas.to_csv(COMIDAS_FILE, index=False)
+            db.delete_food_entry(opciones[seleccion_editar])
             st.success("Comida eliminada.")
             st.rerun()
 
@@ -208,13 +248,16 @@ if not df_dia.empty:
 st.markdown("---")
 st.subheader("Promedios ultimos 7 dias")
 semana_inicio = fecha - timedelta(days=6)
-df_semana = df_comidas[(df_comidas["Fecha"] >= semana_inicio) & (df_comidas["Fecha"] <= fecha)]
-if not df_semana.empty:
-    diario = df_semana.groupby("Fecha").agg({"Kcal": "sum", "Proteinas": "sum", "Carbs": "sum", "Grasas": "sum"})
+daily_totals = db.get_food_daily_totals(user_id, semana_inicio, fecha)
+if daily_totals:
+    avg_kcal = sum(d["kcal"] or 0 for d in daily_totals) / len(daily_totals)
+    avg_prot = sum(d["proteinas"] or 0 for d in daily_totals) / len(daily_totals)
+    avg_carbs = sum(d["carbs"] or 0 for d in daily_totals) / len(daily_totals)
+    avg_grasas = sum(d["grasas"] or 0 for d in daily_totals) / len(daily_totals)
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Kcal/dia", f"{diario['Kcal'].mean():.0f}")
-    c2.metric("Prot/dia", f"{diario['Proteinas'].mean():.0f} g")
-    c3.metric("Carbs/dia", f"{diario['Carbs'].mean():.0f} g")
-    c4.metric("Grasas/dia", f"{diario['Grasas'].mean():.0f} g")
+    c1.metric("Kcal/dia", f"{avg_kcal:.0f}")
+    c2.metric("Prot/dia", f"{avg_prot:.0f} g")
+    c3.metric("Carbs/dia", f"{avg_carbs:.0f} g")
+    c4.metric("Grasas/dia", f"{avg_grasas:.0f} g")
 else:
     st.info("No hay datos de la ultima semana.")
