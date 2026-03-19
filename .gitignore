@@ -2,3 +2,8 @@ pocket_diet.db
 __pycache__/
 *.pyc
 .DS_Store
+
+# Next.js
+next-app/.next/
+next-app/node_modules/
+next-app/.env.local
