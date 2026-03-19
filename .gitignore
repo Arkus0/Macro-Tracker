@@ -4,6 +4,8 @@ __pycache__/
 .DS_Store
 
 # Next.js
+.next/
 next-app/.next/
+node_modules/
 next-app/node_modules/
 next-app/.env.local
