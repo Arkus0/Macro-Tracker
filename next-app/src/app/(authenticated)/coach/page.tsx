@@ -80,10 +80,10 @@ export default function CoachPage() {
     e.preventDefault();
     const today = todayISO();
     const goalCode = goal as "lose" | "maintain" | "gain";
-    const rate = parseFloat(weeklyRate);
+    const rate = goalCode === "maintain" ? 0 : parseFloat(weeklyRate);
     const tdee = parseInt(initialTdee);
     const weight = parseFloat(currentWeight);
-    const target = targetWeight ? parseFloat(targetWeight) : null;
+    const target = goalCode === "maintain" ? null : (targetWeight ? parseFloat(targetWeight) : null);
 
     const planId = await saveCoachPlan(supabase, userId, goalCode, rate, tdee, weight, target, today, preset);
 
@@ -205,14 +205,18 @@ export default function CoachPage() {
                 <option value="gain">Ganar peso</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Peso objetivo (kg)</label>
-              <input type="number" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} step="0.1" min="30" max="300" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Velocidad (kg/semana)</label>
-              <input type="number" value={weeklyRate} onChange={(e) => setWeeklyRate(e.target.value)} step="0.1" min="0" max="1.5" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
-            </div>
+            {goal !== "maintain" && (
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Peso objetivo (kg)</label>
+                <input type="number" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} step="0.1" min="30" max="300" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
+              </div>
+            )}
+            {goal !== "maintain" && (
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Velocidad (kg/semana)</label>
+                <input type="number" value={weeklyRate} onChange={(e) => setWeeklyRate(e.target.value)} step="0.1" min="0" max="1.5" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
+              </div>
+            )}
             <div>
               <label className="block text-sm text-gray-400 mb-1">TDEE estimado inicial</label>
               <input type="number" value={initialTdee} onChange={(e) => setInitialTdee(e.target.value)} step="50" min="1000" max="6000" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
@@ -248,7 +252,7 @@ export default function CoachPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-400">Velocidad</p>
-                <p className="font-bold">{plan.weekly_rate_kg} kg/sem</p>
+                <p className="font-bold">{plan.goal === "maintain" ? "Mantenimiento" : `${plan.weekly_rate_kg} kg/sem`}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400">Target kcal</p>

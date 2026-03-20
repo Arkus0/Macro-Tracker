@@ -158,7 +158,7 @@ export default function FoodLogPage() {
     setSearchError("");
     try {
       const res = await fetch(
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchQuery)}&search_simple=1&action=process&json=1&page_size=10`
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchQuery)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments`
       );
       const data = await res.json();
       const results = (data.products || []).map((p: Record<string, unknown>) => {
@@ -448,7 +448,7 @@ export default function FoodLogPage() {
             onClick={() => setShowAddForm(true)}
             className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand hover:bg-brand-500 text-white font-medium rounded-xl transition-colors"
           >
-            <Plus size={18} /> Anadir comida
+            <Plus size={18} /> Añadir comida
           </button>
           {entries.length > 0 && (
             <button
@@ -465,7 +465,7 @@ export default function FoodLogPage() {
       {showAddForm && (
         <div className="bg-surface rounded-xl border border-border p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-medium">Anadir comida</h3>
+            <h3 className="font-medium">Añadir comida</h3>
             <button onClick={() => setShowAddForm(false)} className="text-gray-500 hover:text-white">
               &times;
             </button>
@@ -800,7 +800,7 @@ export default function FoodLogPage() {
                 disabled={!nombre.trim()}
                 className="w-full py-2.5 bg-brand hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
               >
-                Anadir comida
+                Añadir comida
               </button>
             </div>
           )}
