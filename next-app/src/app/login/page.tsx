@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Mail } from "lucide-react";
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
@@ -22,9 +23,15 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
+        // IMPORTANT: For email confirmation to work correctly, configure in Supabase dashboard:
+        // 1. Authentication > URL Configuration > Site URL = your production URL
+        // 2. Add your production URL + /auth/callback to Redirect URLs allow list
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
         });
         if (error) throw error;
 
@@ -56,82 +63,103 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-brand">Pocket Diet</h1>
-          <p className="text-gray-400 mt-2">
+      <div className="w-full max-w-sm space-y-8">
+        <div className="text-center space-y-1">
+          <h1 className="text-4xl font-bold text-brand tracking-tight">Pocket Diet</h1>
+          <p className="text-gray-500 text-sm">
             Tu macro tracker personal
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand"
-              placeholder="tu@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand"
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
-          </div>
-
-          {error && (
-            <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
-              {error}
+        {successMessage ? (
+          <div className="bg-surface rounded-xl border border-border p-6 space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-green-400/10 flex items-center justify-center">
+              <Mail className="text-green-400" size={24} />
             </div>
-          )}
-
-          {successMessage && (
-            <div className="text-green-400 text-sm bg-green-400/10 border border-green-400/20 rounded-lg p-3">
-              {successMessage}
+            <div className="space-y-2">
+              <h2 className="font-semibold text-white text-lg">Revisa tu email</h2>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Hemos enviado un enlace de confirmacion a <span className="text-white font-medium">{email}</span>. Haz clic en el enlace para activar tu cuenta.
+              </p>
             </div>
-          )}
+            <button
+              onClick={() => {
+                setSuccessMessage("");
+                setIsRegister(false);
+                setEmail("");
+                setPassword("");
+              }}
+              className="w-full py-2.5 bg-surface-hover hover:bg-border text-gray-300 font-medium rounded-lg transition-colors text-sm"
+            >
+              Volver a iniciar sesion
+            </button>
+          </div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-surface border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors"
+                  placeholder="tu@email.com"
+                  required
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-brand hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
-          >
-            {loading
-              ? "..."
-              : isRegister
-                ? "Crear cuenta"
-                : "Iniciar sesion"}
-          </button>
-        </form>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-surface border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors"
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                />
+              </div>
 
-        <div className="text-center">
-          <button
-            onClick={() => {
-              setIsRegister(!isRegister);
-              setError("");
-            }}
-            className="text-sm text-gray-400 hover:text-brand transition-colors"
-          >
-            {isRegister
-              ? "Ya tienes cuenta? Inicia sesion"
-              : "No tienes cuenta? Registrate"}
-          </button>
-        </div>
+              {error && (
+                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-brand hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+              >
+                {loading
+                  ? "..."
+                  : isRegister
+                    ? "Crear cuenta"
+                    : "Iniciar sesion"}
+              </button>
+            </form>
+
+            <div className="text-center">
+              <button
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setError("");
+                }}
+                className="text-sm text-gray-400 hover:text-brand transition-colors"
+              >
+                {isRegister
+                  ? "Ya tienes cuenta? Inicia sesion"
+                  : "No tienes cuenta? Registrate"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

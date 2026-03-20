@@ -73,7 +73,7 @@ export default function RecetasPage() {
   async function searchOFF() {
     if (!searchQuery.trim()) return;
     const res = await fetch(
-      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchQuery)}&search_simple=1&action=process&json=1&page_size=8`
+      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchQuery)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,nutriments`
     );
     const data = await res.json();
     setSearchResults((data.products || []).map((p: Record<string, unknown>) => {
