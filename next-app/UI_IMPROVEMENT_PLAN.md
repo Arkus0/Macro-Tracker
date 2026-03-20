@@ -6,13 +6,17 @@ Plan incremental de mejora visual. Cada fase es independiente y se puede impleme
 
 ## Principios de diseño
 
-- **Mobile-first**: Todo se diseña primero para movil (touch targets >= 44px)
-- **Dark theme nativo**: No es un tema claro invertido; usar sombras y elevacion con opacidad
-- **Feedback inmediato**: Toda accion del usuario debe tener respuesta visual (transiciones, loaders, toasts)
-- **Consistencia**: Componentes reutilizables en vez de estilos inline repetidos
-- **Minimalismo funcional**: Cada elemento visual debe tener un proposito
+- **Mobile-first**: Todo se diseña primero para movil (touch targets min 44px / `min-h-[44px]`)
+- **Dark theme nativo**: Elevacion via lightness, no sombras. Bordes con `border-white/[.06]`
+- **Feedback inmediato**: Respuesta visual < 100ms (`duration-100`), animaciones < 300ms
+- **Consistencia**: Componentes reutilizables, no estilos inline repetidos
+- **Minimalismo funcional**: Cada elemento visual tiene un proposito
+- **Accesibilidad**: Contraste minimo 4.5:1 (WCAG AA), respetar `prefers-reduced-motion`
+- **Numeros legibles**: `tabular-nums` en TODAS las cifras (kcal, gramos, peso, macros)
 
-## Paleta de colores actual + propuesta
+## Tokens de diseño
+
+### Paleta de colores actual + propuesta
 
 ```
 Actual:
@@ -21,12 +25,43 @@ Actual:
   border:     #2D3139
   brand:      #FF6B35
 
-Propuesta (añadir):
+Propuesta (añadir colores semanticos):
   success:    #10B981  (green-500)
   danger:     #EF4444  (red-500)
   warning:    #F59E0B  (amber-500)
   info:       #3B82F6  (blue-500)
-  surface-elevated: #22252B  (cards con elevacion)
+
+Propuesta (sistema de elevacion por lightness — NO sombras en dark mode):
+  Level 0 (base):      #0E1117  (background actual)
+  Level 1 (card):      #161B22  (~7% mas claro)
+  Level 2 (raised):    #1C2128  (~9% mas claro)
+  Level 3 (modal):     #22272E  (~11% mas claro)
+  Bordes:              rgba(255, 255, 255, 0.06) → `border-white/[.06]`
+```
+
+### Spacing (base 4px, escala Tailwind nativa)
+```
+Precision (data-dense): p-1(4) p-2(8) p-3(12) p-4(16) p-6(24) p-8(32)
+Warmth (screens amigables): p-2(8) p-3(12) p-4(16) p-6(24) p-8(32) p-12(48)
+
+Usar "Precision" en: food log tables, macro display, analytics
+Usar "Warmth" en: coach, login, dashboard, onboarding
+```
+
+### Border radius
+```
+Data-dense (tablas, macro bars): rounded-md (6px)
+Cards y containers:              rounded-lg (8px)
+Botones y inputs:                rounded-lg (8px)
+Modales:                         rounded-xl (12px)
+```
+
+### Componentes referencia (specs de interface-design)
+```
+Button:  h-10(40px) px-5 rounded-lg text-[15px] font-medium
+Input:   h-11(44px) px-4 rounded-lg border-[1.5px] border-white/[.06]
+Card:    border border-white/[.06] p-4 rounded-xl (no shadow en dark)
+Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 ```
 
 ---
@@ -52,28 +87,39 @@ Propuesta (añadir):
 - Añadir `surface-elevated` para cards con profundidad
 - Definir variantes de opacidad: `brand-hover`, `brand-muted`
 
-### 1.3 Sombras y elevacion
+### 1.3 Elevacion y bordes (dark mode strategy)
+- En dark mode, sombras son casi invisibles — usar **lightness + bordes** para profundidad
 - Añadir en tailwind.config:
   ```
+  colors: {
+    'surface-1': '#161B22',  // cards
+    'surface-2': '#1C2128',  // raised elements
+    'surface-3': '#22272E',  // modals, dropdowns
+  }
   boxShadow: {
-    card: '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)',
-    elevated: '0 4px 12px rgba(0,0,0,0.4)',
-    glow: '0 0 20px rgba(255, 107, 53, 0.15)',
+    glow: '0 0 20px rgba(255, 107, 53, 0.15)',  // solo para hover en brand elements
   }
   ```
+- Patron de card: `bg-surface-1 border border-white/[.06] rounded-xl` (sin shadow)
 
 ### 1.4 Componente Button reutilizable
 - **Archivo**: `src/components/ui/button.tsx`
-- Variantes: `primary` (brand), `secondary` (surface), `ghost` (transparente), `danger`
-- Tamaños: `sm`, `md`, `lg`
-- Estados: hover, disabled, loading (spinner)
+- Variantes: `primary` (brand), `secondary` (surface-2), `ghost` (transparente), `danger`
+- Tamaños: `sm` (h-8), `md` (h-10), `lg` (h-12)
+- Estados: hover (`duration-100`), disabled, loading (spinner)
 - Usar `class-variance-authority` (ya instalado)
+- Spec: `h-10 px-5 rounded-lg text-[15px] font-medium`
 
 ### 1.5 Componente Input reutilizable
 - **Archivo**: `src/components/ui/input.tsx`
 - Focus state prominente: `focus:ring-2 focus:ring-brand` (sin opacity)
 - Label integrado, mensaje de error opcional
 - Variantes: default, error, success
+- Spec: `h-11 px-4 rounded-lg border-[1.5px] border-white/[.06]`
+
+### 1.6 Tipografia numerica
+- Añadir clase utilitaria `tabular-nums` a todos los componentes que muestran numeros
+- Critico para: macro-display, food log totals, peso, analytics, coach stats
 
 ### Archivos a modificar:
 - `tailwind.config.js` — colores, sombras, tipografia
@@ -88,12 +134,14 @@ Propuesta (añadir):
 **Objetivo**: Bottom nav mas usable y visualmente clara.
 
 ### Mejoras:
-1. **Aumentar altura bottom nav**: `h-16` → `h-20` para touch targets comodos
+1. **Aumentar altura bottom nav**: `h-16` → `h-20` para touch targets comodos (min 44px por item)
 2. **Texto mas legible**: `text-[10px]` → `text-xs`, padding `py-1` → `py-2`
-3. **Active state visible**: Añadir `bg-brand/10 rounded-lg` al item activo en movil
-4. **Transiciones suaves**: `transition-colors duration-200` en todos los items
-5. **Indicador de "Mas"**: Chevron o badge para señalar dropdown
-6. **Sidebar desktop**: Añadir sombra derecha sutil y separador visual del contenido
+3. **Active state visible**: `bg-brand/10 rounded-lg` al item activo + icono en `text-brand`
+4. **Transiciones rapidas**: `transition-colors duration-100` (feedback < 100ms)
+5. **Gap entre items**: Min 8px gap entre elementos interactivos adyacentes
+6. **Indicador de "Mas"**: Chevron para señalar dropdown
+7. **Sidebar desktop**: Borde derecho `border-white/[.06]` en vez de sombra
+8. **Safe area**: Considerar `pb-safe` para dispositivos con home indicator
 
 ### Archivos a modificar:
 - `src/components/app-shell.tsx`
@@ -183,6 +231,12 @@ Propuesta (añadir):
 5. **Confetti/celebration**: Al alcanzar un goal o completar un check-in
 6. **Chart animations**: Lineas que se dibujan progresivamente en Recharts
 
+### Reglas de animacion:
+- Todas las animaciones < 300ms
+- Solo animar `transform` y `opacity` (GPU-accelerated, no layout-triggering)
+- Easing natural (ease-out para entradas, ease-in para salidas)
+- SIEMPRE respetar `prefers-reduced-motion`: `motion-reduce:transition-none`
+
 ---
 
 ## Orden de implementacion recomendado
@@ -200,5 +254,10 @@ Sesion 7: Fase 6 (animaciones) — impacto: BAJO, esfuerzo: VARIABLE
 ## Referencia de diseño
 
 Repos consultados para inspiracion:
-- https://github.com/mustafakendiguzel/claude-code-ui-agents
-- https://github.com/Dammyjay93/interface-design
+- https://github.com/mustafakendiguzel/claude-code-ui-agents — Mobile design philosophy, touch targets, animation timing
+- https://github.com/Dammyjay93/interface-design — Design tokens, elevation system, component specs (Precision vs Warmth)
+
+### Patron recomendado para Pocket Diet:
+- **Precision** (data-dense) en: food log, macro display, analytics, tablas
+- **Warmth** (amigable) en: coach, login, dashboard, onboarding
+- Hibrido que prioriza legibilidad de datos sin sacrificar calidez en pantallas de interaccion
