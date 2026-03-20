@@ -19,7 +19,7 @@ La version Next.js es la activa y reemplaza a la version Streamlit.
 | UI | Tailwind CSS (dark theme, mobile-first) |
 | Charts | Recharts |
 | DB | Supabase (PostgreSQL) con Row Level Security |
-| Auth | Supabase Auth (email/password, maneja confirmacion por email) |
+| Auth | Supabase Auth (email/password, confirmacion por email via /auth/callback) |
 | AI | Anthropic Claude API (food estimation + label OCR) |
 | Barcode | Open Food Facts API |
 | Deploy | Vercel |
@@ -32,6 +32,7 @@ next-app/                           # App Next.js (produccion)
     app/
       layout.tsx                    # Root layout, dark mode, system font
       login/page.tsx                # Login/registro con Supabase Auth
+      auth/callback/route.ts        # Auth callback: intercambia code por sesion
       (authenticated)/
         layout.tsx                  # Auth guard + AppShell wrapper
         page.tsx                    # Home dashboard (peso, kcal, target)
@@ -103,6 +104,9 @@ ANTHROPIC_API_KEY=tu-api-key
 1. Conectar repo en Vercel
 2. Root directory: `next-app`
 3. Configurar las mismas env vars en Vercel dashboard
+4. En Supabase dashboard > Authentication > URL Configuration:
+   - Site URL = URL de produccion en Vercel (ej: https://tu-app.vercel.app)
+   - Añadir `https://tu-app.vercel.app/auth/callback` a Redirect URLs
 
 ## Arquitectura de datos (Supabase)
 
@@ -179,6 +183,8 @@ TDEE = Kcal_promedio_diarias - ((CambioPesoTendencia * 7700) / Dias)
 - Safety clamps: max ±200 kcal/semana, min 1200, max 6000 kcal
 - 6 macro presets: Low Carb, Balanced, High Protein, High Carb, Keto, Custom
 - Requisitos minimos: 3 pesajes + 4 dias de diario por semana
+- Goal "maintain": oculta campos velocidad y peso objetivo (rate=0 automatico)
+- TDEE calculado empiricamente (no usa formulas tipo Harris-Benedict)
 
 ### Weight Trend (`weight-trend.ts`)
 - EMA: smoothing factor = 2/(period+1)
@@ -220,7 +226,7 @@ Todos los API routes requieren autenticacion (devuelven 401 sin sesion valida).
 ## Convenciones de desarrollo
 
 - Todo el codigo y UI en espanol (variables en ingles o espanol segun contexto)
-- Sin tildes en el codigo fuente (compatibilidad)
+- Sin tildes (acentos en vocales) en el codigo fuente — pero ñ SI se usa (es letra, no tilde)
 - TypeScript estricto (`tsc --noEmit` debe pasar limpio)
 - Mobile-first: bottom nav en movil, sidebar en desktop
 - Dark theme por defecto (bg: #0E1117, brand: #FF6B35)
@@ -262,10 +268,10 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 |---------|--------|-------|
 | DB persistente (Supabase) | OK | PostgreSQL con RLS, datos persisten entre deploys |
 | UI mobile-first | OK | Bottom nav movil, sidebar desktop, Tailwind responsive |
-| Auth (Supabase Auth) | OK | Email/password, confirmacion por email, middleware protege rutas, API routes protegidos |
+| Auth (Supabase Auth) | OK | Email/password, confirmacion por email con /auth/callback, emailRedirectTo dinamico, middleware protege rutas, API routes protegidos |
 | Registro de peso diario | OK | UPSERT, historial 14 dias |
 | Food log con macros (P/C/G) | OK | 4 tipos de comida, 7 tabs de entrada |
-| Busqueda Open Food Facts | OK | Tab "Buscar" en food log |
+| Busqueda Open Food Facts | OK | Tab "Buscar" en food log, con fields param para reducir payload |
 | Catalogo personal | OK | Tab "Catalogo" + guardar desde manual |
 | Smart history (frecuentes) | OK | Tab "Frecuentes" con RPC query |
 | Meal templates | OK | Guardar/reutilizar dias completos |
@@ -292,12 +298,25 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 
 ### PENDIENTE
 
+#### PRIORIDAD ALTA — UI Polish
+
+Plan detallado en `next-app/UI_IMPROVEMENT_PLAN.md`. Resumen de fases:
+
+| Fase | Descripcion | Complejidad |
+|------|-------------|-------------|
+| **Fase 1: Fundacion** | Font (Inter/Geist), colores semanticos en Tailwind, componentes Button/Input reutilizables | MEDIA |
+| **Fase 2: Navegacion** | Bottom nav mas grande (h-20), active states visibles, transiciones suaves | BAJA |
+| **Fase 3: Dashboard + Cards** | Skeleton loaders, sombras/elevacion en cards, jerarquia visual en stats | MEDIA |
+| **Fase 4: Food Log** | Progress bars mas gruesas con animacion, warning visual al pasarse de macros | BAJA |
+| **Fase 5: Formularios** | Inputs agrupados visualmente, feedback animado (toasts), focus states prominentes | MEDIA |
+
 #### PRIORIDAD MEDIA
 
 | Feature | Descripcion | Complejidad |
 |---------|-------------|-------------|
 | **Micronutrientes en food log** | Tracking de fibra, azucar, grasa sat, sodio en cada comida | MEDIA |
 | **Base de datos verificada** | DB curada (Open Food Facts no siempre es preciso) | ALTA |
+| **Pantalla de perfil** | Peso, altura, sexo, nivel actividad — necesario para TDEE formula-based como alternativa al empirico | MEDIA |
 
 #### PRIORIDAD BAJA — Nice to have
 
