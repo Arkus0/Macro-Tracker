@@ -7,3 +7,9 @@
     @apply bg-background text-white antialiased;
   }
 }
+
+@layer utilities {
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
