@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -16,15 +17,26 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setLoading(true);
 
     try {
       if (isRegister) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
+
+        // If session is null, email confirmation is required
+        if (data.user && !data.session) {
+          if (data.user.identities?.length === 0) {
+            throw new Error("Este email ya esta registrado. Intenta iniciar sesion.");
+          }
+          setSuccessMessage("Cuenta creada. Revisa tu email para confirmar tu cuenta antes de iniciar sesion.");
+          setLoading(false);
+          return;
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -85,6 +97,12 @@ export default function LoginPage() {
           {error && (
             <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
               {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="text-green-400 text-sm bg-green-400/10 border border-green-400/20 rounded-lg p-3">
+              {successMessage}
             </div>
           )}
 

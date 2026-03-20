@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@/lib/supabase/server";
 
 const SYSTEM_PROMPT = `Eres un experto en lectura de etiquetas nutricionales. El usuario te envia una foto de una etiqueta nutricional de un producto alimenticio.
 
@@ -21,6 +22,12 @@ Si la etiqueta muestra valores por porcion, convierte a por 100g.`;
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { image } = await request.json();
 
     if (!image || typeof image !== "string") {

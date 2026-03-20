@@ -64,6 +64,11 @@ export default function FoodLogPage() {
   // Scanner
   const [scanMode, setScanMode] = useState<"barcode" | "label" | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
+  const [barcodeValue, setBarcodeValue] = useState("");
+  const [barcodeError, setBarcodeError] = useState("");
+  const [scanError, setScanError] = useState("");
+  const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState("");
 
   // Frequent foods & catalog
   const [frequentFoods, setFrequentFoods] = useState<FrequentFood[]>([]);
@@ -150,6 +155,7 @@ export default function FoodLogPage() {
   async function searchOFF() {
     if (!searchQuery.trim()) return;
     setSearching(true);
+    setSearchError("");
     try {
       const res = await fetch(
         `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchQuery)}&search_simple=1&action=process&json=1&page_size=10`
@@ -167,8 +173,12 @@ export default function FoodLogPage() {
         };
       });
       setSearchResults(results);
+      if (results.length === 0) {
+        setSearchError("No se encontraron resultados para esa busqueda.");
+      }
     } catch {
       setSearchResults([]);
+      setSearchError("Error al buscar en Open Food Facts. Intenta de nuevo.");
     } finally {
       setSearching(false);
     }
@@ -265,10 +275,11 @@ export default function FoodLogPage() {
     }
   }
 
-  async function handleBarcodeInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const barcode = e.target.value.trim();
+  async function handleBarcodeLookup() {
+    const barcode = barcodeValue.trim();
     if (barcode.length < 8) return;
     setScanLoading(true);
+    setBarcodeError("");
     try {
       const res = await fetch("/api/barcode-lookup", {
         method: "POST",
@@ -276,11 +287,15 @@ export default function FoodLogPage() {
         body: JSON.stringify({ barcode }),
       });
       const data = await res.json();
-      if (data.product) {
+      if (data.error) {
+        setBarcodeError(data.error);
+      } else if (data.product) {
         selectFood(data.product.name, data.product.brand, data.product.kcal_100g, data.product.proteinas_100g, data.product.carbs_100g, data.product.grasas_100g);
+      } else {
+        setBarcodeError("Producto no encontrado en la base de datos.");
       }
     } catch {
-      // ignore
+      setBarcodeError("Error al buscar el producto. Verifica el codigo.");
     } finally {
       setScanLoading(false);
     }
@@ -290,19 +305,23 @@ export default function FoodLogPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setScanLoading(true);
+    setScanError("");
     try {
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
         reader.readAsDataURL(file);
       });
+      setScanPreview(base64);
       const res = await fetch("/api/label-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: base64 }),
       });
       const data = await res.json();
-      if (data.nutrition) {
+      if (data.error) {
+        setScanError(data.error);
+      } else if (data.nutrition) {
         const n = data.nutrition;
         selectFood(
           n.nombre_producto || "Producto escaneado",
@@ -312,9 +331,11 @@ export default function FoodLogPage() {
           n.carbs_100g || 0,
           n.grasas_100g || 0
         );
+      } else {
+        setScanError("No se pudieron extraer los valores nutricionales.");
       }
     } catch {
-      // ignore
+      setScanError("Error al procesar la etiqueta. Intenta con otra foto.");
     } finally {
       setScanLoading(false);
     }
@@ -522,6 +543,7 @@ export default function FoodLogPage() {
                   </button>
                 ))}
               </div>
+              {searchError && <p className="text-xs text-red-400 mt-2">{searchError}</p>}
             </div>
           )}
 
@@ -646,13 +668,25 @@ export default function FoodLogPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Codigo de barras</h4>
-                <input
-                  type="text"
-                  onChange={handleBarcodeInput}
-                  placeholder="Introduce o escanea el codigo de barras..."
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white text-sm placeholder-gray-600"
-                  inputMode="numeric"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={barcodeValue}
+                    onChange={(e) => { setBarcodeValue(e.target.value); setBarcodeError(""); }}
+                    onKeyDown={(e) => e.key === "Enter" && handleBarcodeLookup()}
+                    placeholder="Codigo de barras..."
+                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-brand/50"
+                    inputMode="numeric"
+                  />
+                  <button
+                    onClick={handleBarcodeLookup}
+                    disabled={scanLoading || barcodeValue.trim().length < 8}
+                    className="px-4 py-2 bg-brand hover:bg-brand-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+                  >
+                    {scanLoading ? "..." : "Buscar"}
+                  </button>
+                </div>
+                {barcodeError && <p className="text-xs text-red-400">{barcodeError}</p>}
               </div>
               <div className="border-t border-border pt-3 space-y-2">
                 <h4 className="text-sm font-medium">Etiqueta nutricional</h4>
@@ -668,6 +702,17 @@ export default function FoodLogPage() {
                     className="hidden"
                   />
                 </label>
+                {scanPreview && (
+                  <div className="relative">
+                    <img src={scanPreview} alt="Etiqueta" className="w-full max-h-32 object-contain rounded-lg" />
+                    {scanLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                        <span className="text-sm text-white">Procesando...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {scanError && <p className="text-xs text-red-400">{scanError}</p>}
               </div>
             </div>
           )}

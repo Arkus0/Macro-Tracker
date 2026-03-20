@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@/lib/supabase/server";
 
 const SYSTEM_PROMPT = `Eres un nutricionista experto. El usuario te describe una comida en texto libre y tu debes estimar los macronutrientes.
 
@@ -20,6 +21,12 @@ Ejemplo de respuesta:
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { description } = await request.json();
 
     if (!description || typeof description !== "string") {
