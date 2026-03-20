@@ -19,7 +19,7 @@ La version Next.js es la activa y reemplaza a la version Streamlit.
 | UI | Tailwind CSS (dark theme, mobile-first) |
 | Charts | Recharts |
 | DB | Supabase (PostgreSQL) con Row Level Security |
-| Auth | Supabase Auth (email/password) |
+| Auth | Supabase Auth (email/password, maneja confirmacion por email) |
 | AI | Anthropic Claude API (food estimation + label OCR) |
 | Barcode | Open Food Facts API |
 | Deploy | Vercel |
@@ -143,16 +143,17 @@ Funciones clave:
 
 El food log (`food-log/page.tsx`) es la pagina mas compleja. Ofrece 7 tabs para agregar comidas:
 
-1. **Buscar** — Open Food Facts API (busqueda por nombre)
+1. **Buscar** — Open Food Facts API (busqueda por nombre, con feedback de errores)
 2. **Frecuentes** — Alimentos mas usados (RPC query con COUNT + AVG)
 3. **Catalogo** — Favoritos guardados del usuario
 4. **Templates** — Comidas guardadas completas (reutilizables)
 5. **IA** — Texto libre → Claude API estima macros (POST /api/ai-estimate)
-6. **Escanear** — Barcode (Open Food Facts) + foto etiqueta (Claude Vision)
+6. **Escanear** — Barcode con boton de busqueda + foto etiqueta con preview (Claude Vision)
 7. **Manual** — Entrada directa con inputs por 100g + gramos
 
 Cada dia se divide en 4 tipos de comida: Desayuno, Comida, Cena, Snack.
 Soporta: copiar dia anterior, guardar dia como template, eliminar comidas.
+Todas las operaciones de busqueda/escaneo muestran mensajes de error al usuario.
 
 ## Macro Cycling
 
@@ -191,21 +192,30 @@ TDEE = Kcal_promedio_diarias - ((CambioPesoTendencia * 7700) / Dias)
 
 ## AI Features
 
+Todos los API routes requieren autenticacion (devuelven 401 sin sesion valida).
+
 ### AI Food Estimation (POST /api/ai-estimate)
 - Input: `{ description: string }` (ej: "un plato de arroz con pollo")
 - Model: Claude claude-sonnet-4-20250514
 - Output: `{ items: [{ comida, gramos, kcal, proteinas, carbs, grasas }] }`
 - Prompt en espanol, porciones tipicas espanolas/latinas
+- Auth: requiere sesion Supabase
 
 ### Label Scanner (POST /api/label-scan)
 - Input: `{ image: string }` (base64)
 - Model: Claude claude-sonnet-4-20250514 con Vision
 - Output: `{ nutrition: { kcal_100g, proteinas_100g, carbs_100g, grasas_100g, ... } }`
+- Preview de imagen capturada en el frontend
+- Mensajes de error visibles al usuario
+- Auth: requiere sesion Supabase
 
 ### Barcode Lookup (POST /api/barcode-lookup)
 - Input: `{ barcode: string }`
 - API: Open Food Facts `https://world.openfoodfacts.org/api/v0/product/{barcode}.json`
 - Output: `{ product: { name, brand, kcal_100g, proteinas_100g, carbs_100g, grasas_100g } }`
+- Busqueda por boton/Enter (no auto-fire en cada tecla)
+- Mensajes de error visibles al usuario
+- Auth: requiere sesion Supabase
 
 ## Convenciones de desarrollo
 
@@ -252,7 +262,7 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 |---------|--------|-------|
 | DB persistente (Supabase) | OK | PostgreSQL con RLS, datos persisten entre deploys |
 | UI mobile-first | OK | Bottom nav movil, sidebar desktop, Tailwind responsive |
-| Auth (Supabase Auth) | OK | Email/password, middleware protege rutas |
+| Auth (Supabase Auth) | OK | Email/password, confirmacion por email, middleware protege rutas, API routes protegidos |
 | Registro de peso diario | OK | UPSERT, historial 14 dias |
 | Food log con macros (P/C/G) | OK | 4 tipos de comida, 7 tabs de entrada |
 | Busqueda Open Food Facts | OK | Tab "Buscar" en food log |
