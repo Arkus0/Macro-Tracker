@@ -11,6 +11,7 @@ import {
   ChefHat,
   Ruler,
   LogOut,
+  ChevronUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -45,7 +46,7 @@ export default function AppShell({
   return (
     <div className="flex flex-col min-h-screen md:flex-row">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-56 bg-surface border-r border-border p-4 fixed h-full">
+      <aside className="hidden md:flex md:flex-col md:w-56 bg-surface border-r border-white/[.06] p-4 fixed h-full">
         <div className="mb-6">
           <h1 className="text-xl font-bold text-brand">Pocket Diet</h1>
           {username && (
@@ -84,13 +85,13 @@ export default function AppShell({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-56 pb-20 md:pb-4">
+      <main className="flex-1 md:ml-56 pb-24 md:pb-4">
         <div className="max-w-4xl mx-auto p-4">{children}</div>
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50">
-        <div className="flex justify-around items-center h-16 px-2">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-white/[.06] z-50">
+        <div className="flex justify-around items-center h-20 px-2 pb-safe">
           {NAV_ITEMS.slice(0, 5).map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -98,16 +99,17 @@ export default function AppShell({
               <a
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-0.5 text-[10px] py-1 px-2 rounded-lg transition-colors ${
-                  isActive ? "text-brand" : "text-gray-500"
+                className={`flex flex-col items-center gap-0.5 text-xs py-2 px-3 rounded-lg transition-colors duration-100 ${
+                  isActive
+                    ? "bg-brand/10 text-brand"
+                    : "text-gray-500"
                 }`}
               >
-                <Icon size={20} />
+                <Icon size={22} />
                 {item.label}
               </a>
             );
           })}
-          {/* More menu for remaining items */}
           <MoreMenu items={NAV_ITEMS.slice(5)} pathname={pathname} />
         </div>
       </nav>
@@ -127,18 +129,14 @@ function MoreMenu({
   return (
     <div className="relative group">
       <button
-        className={`flex flex-col items-center gap-0.5 text-[10px] py-1 px-2 rounded-lg ${
-          isAnyActive ? "text-brand" : "text-gray-500"
+        className={`flex flex-col items-center gap-0.5 text-xs py-2 px-3 rounded-lg transition-colors duration-100 ${
+          isAnyActive ? "bg-brand/10 text-brand" : "text-gray-500"
         }`}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="1" />
-          <circle cx="19" cy="12" r="1" />
-          <circle cx="5" cy="12" r="1" />
-        </svg>
+        <ChevronUp size={22} />
         Mas
       </button>
-      <div className="absolute bottom-full right-0 mb-2 bg-surface border border-border rounded-lg shadow-xl hidden group-focus-within:block group-hover:block min-w-[140px]">
+      <div className="absolute bottom-full right-0 mb-2 bg-surface-1 border border-white/[.06] rounded-xl hidden group-focus-within:block group-hover:block min-w-[160px] overflow-hidden">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -146,7 +144,7 @@ function MoreMenu({
             <a
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+              className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors duration-100 ${
                 isActive
                   ? "text-brand bg-brand/10"
                   : "text-gray-400 hover:text-white hover:bg-surface-hover"

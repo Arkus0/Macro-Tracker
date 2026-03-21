@@ -23,10 +23,12 @@ import type { FoodEntry, Targets, FrequentFood, FoodCatalogEntry, MealTemplate, 
 import { MEAL_TYPES } from "@/lib/types";
 import { todayISO, formatDateDisplay } from "@/lib/utils";
 import MacroDisplay from "@/components/macro-display";
+import { useToast } from "@/components/ui/toast";
 import { Copy, Trash2, ChevronDown, ChevronUp, Plus, Search, Star, Clock, BookOpen, Pencil, Sparkles, Camera } from "lucide-react";
 
 export default function FoodLogPage() {
   const supabase = createClient();
+  const { addToast } = useToast();
   const [userId, setUserId] = useState("");
   const [fecha, setFecha] = useState(todayISO());
   const [entries, setEntries] = useState<FoodEntry[]>([]);
@@ -214,11 +216,13 @@ export default function FoodLogPage() {
     setSaveToCatalog(false);
     setShowAddForm(false);
     await loadData(userId);
+    addToast("Comida añadida", "success");
   }
 
   async function handleDelete(entryId: number) {
     await deleteFoodEntry(supabase, entryId);
     await loadData(userId);
+    addToast("Comida eliminada", "info");
   }
 
   async function handleCopyPreviousDay() {
@@ -227,11 +231,13 @@ export default function FoodLogPage() {
     const prevDate = d.toISOString().split("T")[0];
     await copyFoodEntries(supabase, userId, prevDate, fecha);
     await loadData(userId);
+    addToast("Dia anterior copiado", "success");
   }
 
   async function handleUseTemplate(templateId: number) {
     await useMealTemplate(supabase, userId, templateId, fecha, tipoComida);
     await loadData(userId);
+    addToast("Template aplicado", "success");
   }
 
   async function handleSaveTemplate() {
@@ -248,11 +254,13 @@ export default function FoodLogPage() {
     }));
     await saveMealTemplate(supabase, userId, name, items);
     await loadData(userId);
+    addToast("Template guardado", "success");
   }
 
   async function handleDeleteTemplate(templateId: number) {
     await deleteMealTemplate(supabase, templateId);
     await loadData(userId);
+    addToast("Template eliminado", "info");
   }
 
   async function handleAiEstimate() {
@@ -400,14 +408,14 @@ export default function FoodLogPage() {
         const collapsed = collapsedMeals[tipo];
 
         return (
-          <div key={tipo} className="bg-surface rounded-xl border border-border overflow-hidden">
+          <div key={tipo} className="bg-surface-1 rounded-xl border border-white/[.06] overflow-hidden">
             <button
               onClick={() => setCollapsedMeals((p) => ({ ...p, [tipo]: !p[tipo] }))}
-              className="w-full flex items-center justify-between p-3 hover:bg-surface-hover transition-colors"
+              className="w-full flex items-center justify-between p-3 hover:bg-surface-hover transition-colors duration-100"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium">{tipo}</span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 nums">
                   {mealEntries.length} items — {Math.round(mealKcal)} kcal
                 </span>
               </div>
@@ -415,21 +423,21 @@ export default function FoodLogPage() {
             </button>
 
             {!collapsed && mealEntries.length > 0 && (
-              <div className="border-t border-border">
+              <div className="border-t border-white/[.06]">
                 {mealEntries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between px-3 py-2 border-b border-border/30 last:border-0 text-sm"
+                    className="flex items-center justify-between px-3 py-2 border-b border-white/[.04] last:border-0 text-sm"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{entry.comida}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 nums">
                         {entry.gramos}g — {Math.round(entry.kcal)} kcal | P:{Math.round(entry.proteinas)} C:{Math.round(entry.carbs)} G:{Math.round(entry.grasas)}
                       </p>
                     </div>
                     <button
                       onClick={() => handleDelete(entry.id)}
-                      className="ml-2 p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                      className="ml-2 p-1.5 text-gray-500 hover:text-red-400 transition-colors duration-100"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -463,7 +471,7 @@ export default function FoodLogPage() {
 
       {/* Add food form */}
       {showAddForm && (
-        <div className="bg-surface rounded-xl border border-border p-4 space-y-4">
+        <div className="bg-surface-1 rounded-xl border border-white/[.06] p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-medium">Añadir comida</h3>
             <button onClick={() => setShowAddForm(false)} className="text-gray-500 hover:text-white">
@@ -489,20 +497,21 @@ export default function FoodLogPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 overflow-x-auto pb-1">
+          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
-                    activeTab === tab.key
-                      ? "bg-brand/20 text-brand"
-                      : "text-gray-500 hover:text-white hover:bg-background"
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-colors duration-100 ${
+                    isActive
+                      ? "bg-brand/15 text-brand font-medium border-b-2 border-brand"
+                      : "text-gray-500 hover:text-white hover:bg-white/[.04]"
                   }`}
                 >
-                  <Icon size={12} />
+                  <Icon size={13} />
                   {tab.label}
                 </button>
               );
@@ -537,7 +546,7 @@ export default function FoodLogPage() {
                     className="w-full text-left p-2 rounded-lg hover:bg-background text-sm transition-colors"
                   >
                     <p className="font-medium truncate">{r.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 nums">
                       {r.brand && `${r.brand} — `}{r.kcal} kcal | P:{r.protein} C:{r.carbs} G:{r.fat} /100g
                     </p>
                   </button>
@@ -559,7 +568,7 @@ export default function FoodLogPage() {
                   className="w-full text-left p-2 rounded-lg hover:bg-background text-sm transition-colors"
                 >
                   <p className="font-medium truncate">{f.comida} {f.marca && <span className="text-gray-500">({f.marca})</span>}</p>
-                  <p className="text-xs text-gray-500">{Math.round(f.kcal_100g)} kcal/100g — usado {f.freq}x</p>
+                  <p className="text-xs text-gray-500 nums">{Math.round(f.kcal_100g)} kcal/100g — usado {f.freq}x</p>
                 </button>
               ))}
             </div>
@@ -577,7 +586,7 @@ export default function FoodLogPage() {
                   className="w-full text-left p-2 rounded-lg hover:bg-background text-sm transition-colors"
                 >
                   <p className="font-medium truncate">{c.comida}</p>
-                  <p className="text-xs text-gray-500">{c.kcal_100g} kcal/100g</p>
+                  <p className="text-xs text-gray-500 nums">{c.kcal_100g} kcal/100g</p>
                 </button>
               ))}
             </div>
@@ -653,7 +662,7 @@ export default function FoodLogPage() {
                       className="w-full text-left p-2 rounded-lg hover:bg-background text-sm transition-colors"
                     >
                       <p className="font-medium">{item.comida}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 nums">
                         {item.gramos}g — {Math.round(item.kcal)} kcal | P:{Math.round(item.proteinas)} C:{Math.round(item.carbs)} G:{Math.round(item.grasas)}
                       </p>
                     </button>
@@ -719,7 +728,7 @@ export default function FoodLogPage() {
 
           {/* Manual entry form (always shown when manual tab or after selecting food) */}
           {(activeTab === "manual" || nombre) && (
-            <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-3 pt-2 border-t border-white/[.06]">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Nombre</label>
@@ -777,7 +786,7 @@ export default function FoodLogPage() {
 
               {/* Preview */}
               {nombre && gramos && kcal100 && (
-                <div className="text-xs text-gray-400 bg-background rounded-lg p-2">
+                <div className="text-xs text-gray-400 bg-background rounded-lg p-2 nums">
                   Total: {Math.round((parseFloat(kcal100) * parseFloat(gramos)) / 100)} kcal |
                   P: {Math.round(((parseFloat(prot100) || 0) * parseFloat(gramos)) / 100)}g |
                   C: {Math.round(((parseFloat(carbs100) || 0) * parseFloat(gramos)) / 100)}g |
@@ -808,7 +817,7 @@ export default function FoodLogPage() {
       )}
 
       {/* Weekly averages */}
-      <div className="bg-surface rounded-xl border border-border p-4">
+      <div className="bg-surface-1 rounded-xl border border-white/[.06] p-4">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Promedios ultimos 7 dias</h3>
         <MacroDisplay
           kcal={weeklyAvg.kcal}
