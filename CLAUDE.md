@@ -303,6 +303,10 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 | Copiar dia anterior | OK | En food log |
 | Promedios semanales | OK | Ultimos 7 dias de macros |
 | UI Fase 1: Fundacion | OK | Inter font, colores semanticos, surface levels, Button/Input con CVA, `.nums` utility |
+| UI Fase 2: Navegacion | OK | Bottom nav h-20, active states visibles, ChevronUp en Mas, border-white/[.06] |
+| UI Fase 3: Dashboard | OK | Greeting por hora, StatCards text-3xl + .nums, temporal context, skeleton loader |
+| UI Fase 4: Macro Display + Food Log | OK | Barras h-2.5 solidas con animacion, warning >100%, tabs mejorados, .nums |
+| UI Fase 5: Toast + Feedback | OK | ToastProvider (success/error/info/warning), auto-dismiss 3s, food-log conectado |
 
 ### PENDIENTE
 
@@ -313,10 +317,10 @@ Plan detallado en `next-app/UI_IMPROVEMENT_PLAN.md`. Resumen de fases:
 | Fase | Descripcion | Complejidad |
 |------|-------------|-------------|
 | ~~Fase 1: Fundacion~~ | ~~Font (Inter), colores semanticos en Tailwind, componentes Button/Input reutilizables~~ | ~~MEDIA~~ HECHO |
-| **Fase 2: Navegacion** | Bottom nav mas grande (h-20), active states visibles, transiciones suaves | BAJA |
-| **Fase 3: Dashboard + Cards** | Skeleton loaders, sombras/elevacion en cards, jerarquia visual en stats | MEDIA |
-| **Fase 4: Food Log** | Progress bars mas gruesas con animacion, warning visual al pasarse de macros | BAJA |
-| **Fase 5: Formularios** | Inputs agrupados visualmente, feedback animado (toasts), focus states prominentes | MEDIA |
+| ~~Fase 2: Navegacion~~ | ~~Bottom nav mas grande (h-20), active states visibles, transiciones suaves~~ | ~~BAJA~~ HECHO |
+| ~~Fase 3: Dashboard + Cards~~ | ~~Skeleton loaders, elevacion en cards, jerarquia visual en stats~~ | ~~MEDIA~~ HECHO |
+| ~~Fase 4: Food Log~~ | ~~Progress bars mas gruesas con animacion, warning visual al pasarse de macros~~ | ~~BAJA~~ HECHO |
+| ~~Fase 5: Formularios~~ | ~~Toast system, feedback animado~~ | ~~MEDIA~~ HECHO (toast; falta migrar forms) |
 
 #### PRIORIDAD MEDIA
 
