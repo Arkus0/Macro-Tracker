@@ -113,9 +113,11 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 2: Navegacion (app-shell.tsx)
+## Fase 2: Navegacion (app-shell.tsx) ✅ COMPLETADA
 
 **Objetivo**: Bottom nav mas usable y visualmente clara.
+
+**Estado**: IMPLEMENTADA. Todos los items completados.
 
 ### Mejoras:
 1. **Aumentar altura bottom nav**: `h-16` → `h-20` para touch targets comodos (min 44px por item)
@@ -132,9 +134,11 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 3: Dashboard y Cards (page.tsx home)
+## Fase 3: Dashboard y Cards (page.tsx home) ✅ COMPLETADA
 
 **Objetivo**: Dashboard mas informativo y visualmente jerarquico.
+
+**Estado**: IMPLEMENTADA. Greeting, stat cards mejorados, skeleton loader, quick links con iconos.
 
 ### Mejoras:
 1. **Skeleton loaders**: Mostrar `animate-pulse` placeholders mientras carga data
@@ -150,9 +154,11 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 4: Macro Display y Food Log
+## Fase 4: Macro Display y Food Log ✅ COMPLETADA
 
 **Objetivo**: Barras de progreso mas visibles y food log mas pulido.
+
+**Estado**: IMPLEMENTADA. Barras gruesas, color solido, animacion, warning >100%, tabs mejorados, .nums en todo.
 
 ### 4.1 Macro Display (`macro-display.tsx`)
 1. **Barras mas gruesas**: `h-1.5` → `h-2.5`
@@ -173,9 +179,11 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 5: Formularios y Feedback
+## Fase 5: Formularios y Feedback ✅ COMPLETADA (parcial)
 
 **Objetivo**: Inputs consistentes y feedback visual para todas las acciones.
+
+**Estado**: Toast system implementado y conectado a food-log. Falta migrar formularios de otras paginas a componentes Input/Button.
 
 ### 5.1 Formularios
 1. **Usar componentes Input/Button** de Fase 1 en todas las paginas
@@ -227,11 +235,11 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ```
 Sesion 1: Fase 1 (fundacion) — ✅ COMPLETADA
-Sesion 2: Fase 2 (navegacion) — impacto: ALTO, esfuerzo: BAJO
-Sesion 3: Fase 4.1 (macro display) — impacto: ALTO, esfuerzo: BAJO
-Sesion 4: Fase 3 (dashboard) — impacto: MEDIO, esfuerzo: MEDIO
-Sesion 5: Fase 5 (formularios + toast) — impacto: MEDIO, esfuerzo: MEDIO
-Sesion 6: Fase 4.2 (food log) — impacto: MEDIO, esfuerzo: MEDIO
+Sesion 2: Fase 2 (navegacion) — ✅ COMPLETADA
+Sesion 3: Fase 4.1 (macro display) — ✅ COMPLETADA
+Sesion 4: Fase 3 (dashboard) — ✅ COMPLETADA
+Sesion 5: Fase 5 (formularios + toast) — ✅ COMPLETADA (toast + food-log; falta migrar forms de otras paginas)
+Sesion 6: Fase 4.2 (food log) — ✅ COMPLETADA
 Sesion 7: Fase 6 (animaciones) — impacto: BAJO, esfuerzo: VARIABLE
 ```
 
