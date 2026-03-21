@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
@@ -23,9 +25,6 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
-        // IMPORTANT: For email confirmation to work correctly, configure in Supabase dashboard:
-        // 1. Authentication > URL Configuration > Site URL = your production URL
-        // 2. Add your production URL + /auth/callback to Redirect URLs allow list
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -35,7 +34,6 @@ export default function LoginPage() {
         });
         if (error) throw error;
 
-        // If session is null, email confirmation is required
         if (data.user && !data.session) {
           if (data.user.identities?.length === 0) {
             throw new Error("Este email ya esta registrado. Intenta iniciar sesion.");
@@ -63,7 +61,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-sm space-y-8 animate-fade-in">
         <div className="text-center space-y-1">
           <h1 className="text-4xl font-bold text-brand tracking-tight">Pocket Diet</h1>
           <p className="text-gray-500 text-sm">
@@ -72,7 +70,7 @@ export default function LoginPage() {
         </div>
 
         {successMessage ? (
-          <div className="bg-surface rounded-xl border border-border p-6 space-y-4 text-center">
+          <div className="bg-surface rounded-xl border border-white/[.06] p-6 space-y-4 text-center">
             <div className="mx-auto w-12 h-12 rounded-full bg-green-400/10 flex items-center justify-center">
               <Mail className="text-green-400" size={24} />
             </div>
@@ -82,49 +80,40 @@ export default function LoginPage() {
                 Hemos enviado un enlace de confirmacion a <span className="text-white font-medium">{email}</span>. Haz clic en el enlace para activar tu cuenta.
               </p>
             </div>
-            <button
+            <Button
+              variant="secondary"
+              className="w-full"
               onClick={() => {
                 setSuccessMessage("");
                 setIsRegister(false);
                 setEmail("");
                 setPassword("");
               }}
-              className="w-full py-2.5 bg-surface-hover hover:bg-border text-gray-300 font-medium rounded-lg transition-colors text-sm"
             >
               Volver a iniciar sesion
-            </button>
+            </Button>
           </div>
         ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors"
-                  placeholder="tu@email.com"
-                  required
-                />
-              </div>
+              <Input
+                type="email"
+                label="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors"
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                />
-              </div>
+              <Input
+                type="password"
+                label="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+              />
 
               {error && (
                 <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
@@ -132,17 +121,13 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button
+              <Button
                 type="submit"
-                disabled={loading}
-                className="w-full py-2.5 bg-brand hover:bg-brand-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+                loading={loading}
+                className="w-full"
               >
-                {loading
-                  ? "..."
-                  : isRegister
-                    ? "Crear cuenta"
-                    : "Iniciar sesion"}
-              </button>
+                {isRegister ? "Crear cuenta" : "Iniciar sesion"}
+              </Button>
             </form>
 
             <div className="text-center">

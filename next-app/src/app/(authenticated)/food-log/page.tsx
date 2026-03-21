@@ -360,7 +360,7 @@ export default function FoodLogPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Food Log</h1>

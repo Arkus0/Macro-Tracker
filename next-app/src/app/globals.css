@@ -36,3 +36,25 @@
 .animate-toast-in {
   animation: toast-in 200ms ease-out;
 }
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-toast-in {
+    animation: none;
+  }
+}

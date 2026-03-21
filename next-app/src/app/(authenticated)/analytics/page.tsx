@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
   const phaseColor = trend?.phase === "losing" ? "text-green-400" : trend?.phase === "gaining" ? "text-red-400" : "text-yellow-400";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold">Analytics</h1>
 
       {/* Key metrics */}

@@ -161,6 +161,17 @@ export interface DayTypeOverride {
   day_type: "training" | "rest";
 }
 
+export interface UserProfile {
+  id: number;
+  user_id: string;
+  height_cm: number | null;
+  birth_year: number | null;
+  sex: "M" | "F" | null;
+  activity_level: "sedentary" | "light" | "moderate" | "active" | "very_active" | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ============================================================================
 // Derived / computed types
 // ============================================================================

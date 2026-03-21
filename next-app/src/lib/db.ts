@@ -742,6 +742,53 @@ export async function saveDayOverride(
   if (error) throw error;
 }
 
+// ============================================================================
+// User Profile
+// ============================================================================
+
+export async function getUserProfile(
+  supabase: SupabaseClient,
+  userId: string
+) {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as import("./types").UserProfile | null;
+}
+
+export async function saveUserProfile(
+  supabase: SupabaseClient,
+  userId: string,
+  profile: {
+    heightCm: number | null;
+    birthYear: number | null;
+    sex: "M" | "F" | null;
+    activityLevel: string | null;
+  }
+) {
+  const { error } = await supabase
+    .from("user_profiles")
+    .upsert(
+      {
+        user_id: userId,
+        height_cm: profile.heightCm,
+        birth_year: profile.birthYear,
+        sex: profile.sex,
+        activity_level: profile.activityLevel,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+  if (error) throw error;
+}
+
+// ============================================================================
+// Day Type Overrides
+// ============================================================================
+
 export async function deleteDayOverride(
   supabase: SupabaseClient,
   userId: string,

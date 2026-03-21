@@ -12,6 +12,7 @@ import {
   getCheckinHistory,
   getWeightEntries,
   getFoodDailyTotals,
+  getUserProfile,
 } from "@/lib/db";
 import {
   PRESET_MAP,
@@ -21,15 +22,20 @@ import {
   buildWeeklyData,
 } from "@/lib/algorithms/adaptive-coach";
 import { calculateWeightTrend } from "@/lib/algorithms/weight-trend";
-import { calculateProjection, generateGoalLine } from "@/lib/algorithms/goal-projection";
+import { calculateProjection } from "@/lib/algorithms/goal-projection";
 import type { CoachPlan, Targets, CheckinHistory } from "@/lib/types";
 import type { CheckInResult } from "@/lib/algorithms/adaptive-coach";
 import type { GoalProjection } from "@/lib/algorithms/goal-projection";
 import { todayISO } from "@/lib/utils";
+import { calculateFormulaTDEE } from "@/lib/algorithms/tdee-formula";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 export default function CoachPage() {
   const supabase = createClient();
+  const { addToast } = useToast();
   const [userId, setUserId] = useState("");
   const [plan, setPlan] = useState<CoachPlan | null>(null);
   const [targets, setTargets] = useState<Targets | null>(null);
@@ -47,17 +53,35 @@ export default function CoachPage() {
   const [preset, setPreset] = useState("balanced");
 
   const loadData = useCallback(async (uid: string) => {
-    const [coachPlan, tgt, chk] = await Promise.all([
+    const [coachPlan, tgt, chk, profile, weights] = await Promise.all([
       getActiveCoachPlan(supabase, uid),
       getActiveTargets(supabase, uid),
       getCheckinHistory(supabase, uid),
+      getUserProfile(supabase, uid),
+      getWeightEntries(supabase, uid),
     ]);
     setPlan(coachPlan);
     setTargets(tgt);
     setCheckins(chk);
 
+    // If no plan, suggest TDEE from formula if profile is complete
+    if (!coachPlan && profile?.height_cm && profile?.birth_year && profile?.sex && profile?.activity_level) {
+      const latestWeight = weights.find((w) => w.peso != null);
+      if (latestWeight?.peso) {
+        const age = new Date().getFullYear() - profile.birth_year;
+        const formulaTdee = calculateFormulaTDEE(
+          latestWeight.peso,
+          Number(profile.height_cm),
+          age,
+          profile.sex as "M" | "F",
+          profile.activity_level as "sedentary" | "light" | "moderate" | "active" | "very_active"
+        );
+        setInitialTdee(String(formulaTdee));
+        setCurrentWeight(String(latestWeight.peso));
+      }
+    }
+
     if (coachPlan) {
-      const weights = await getWeightEntries(supabase, uid);
       const trendEntries = weights.filter((w) => w.peso != null);
       if (trendEntries.length >= 3) {
         const trendResult = calculateWeightTrend(trendEntries);
@@ -98,6 +122,7 @@ export default function CoachPage() {
       notes: `Plan coach: ${goalCode} ${rate}kg/sem`,
     });
 
+    addToast("Plan creado", "success");
     await loadData(userId);
   }
 
@@ -146,6 +171,7 @@ export default function CoachPage() {
       true
     );
 
+    addToast("Check-in aplicado", "success");
     setCheckinResult(null);
     await loadData(userId);
   }
@@ -168,6 +194,7 @@ export default function CoachPage() {
       false
     );
 
+    addToast("Check-in descartado", "info");
     setCheckinResult(null);
     await loadData(userId);
   }
@@ -178,6 +205,7 @@ export default function CoachPage() {
     setPlan(null);
     setProjection(null);
     setCheckinResult(null);
+    addToast("Plan reseteado", "info");
   }
 
   if (loading) return <div className="text-gray-500">Cargando...</div>;
@@ -189,61 +217,82 @@ export default function CoachPage() {
   const goalLabels: Record<string, string> = { lose: "Perder peso", maintain: "Mantener", gain: "Ganar peso" };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold">Coach Adaptativo</h1>
 
       {/* Setup form (no plan) */}
       {!plan && (
-        <form onSubmit={handleSetup} className="bg-surface rounded-xl border border-border p-4 space-y-4">
+        <form onSubmit={handleSetup} className="bg-surface rounded-xl border border-white/[.06] p-4 space-y-4">
           <h2 className="font-medium">Configurar tu plan</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Objetivo</label>
-              <select value={goal} onChange={(e) => setGoal(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white">
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Objetivo</label>
+              <select value={goal} onChange={(e) => setGoal(e.target.value)} className="h-11 w-full rounded-lg border-[1.5px] border-white/[.06] bg-surface px-4 text-white transition-colors duration-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
                 <option value="lose">Perder peso</option>
                 <option value="maintain">Mantener peso</option>
                 <option value="gain">Ganar peso</option>
               </select>
             </div>
             {goal !== "maintain" && (
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Peso objetivo (kg)</label>
-                <input type="number" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} step="0.1" min="30" max="300" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
-              </div>
+              <Input
+                type="number"
+                label="Peso objetivo (kg)"
+                value={targetWeight}
+                onChange={(e) => setTargetWeight(e.target.value)}
+                step="0.1"
+                min="30"
+                max="300"
+              />
             )}
             {goal !== "maintain" && (
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Velocidad (kg/semana)</label>
-                <input type="number" value={weeklyRate} onChange={(e) => setWeeklyRate(e.target.value)} step="0.1" min="0" max="1.5" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
-              </div>
+              <Input
+                type="number"
+                label="Velocidad (kg/semana)"
+                value={weeklyRate}
+                onChange={(e) => setWeeklyRate(e.target.value)}
+                step="0.1"
+                min="0"
+                max="1.5"
+              />
             )}
+            <Input
+              type="number"
+              label="TDEE estimado inicial"
+              value={initialTdee}
+              onChange={(e) => setInitialTdee(e.target.value)}
+              step="50"
+              min="1000"
+              max="6000"
+            />
+            <Input
+              type="number"
+              label="Peso actual (kg)"
+              value={currentWeight}
+              onChange={(e) => setCurrentWeight(e.target.value)}
+              step="0.1"
+              min="30"
+              max="300"
+              required
+            />
             <div>
-              <label className="block text-sm text-gray-400 mb-1">TDEE estimado inicial</label>
-              <input type="number" value={initialTdee} onChange={(e) => setInitialTdee(e.target.value)} step="50" min="1000" max="6000" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Peso actual (kg)</label>
-              <input type="number" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} step="0.1" min="30" max="300" required className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Preset macros</label>
-              <select value={preset} onChange={(e) => setPreset(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white">
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Preset macros</label>
+              <select value={preset} onChange={(e) => setPreset(e.target.value)} className="h-11 w-full rounded-lg border-[1.5px] border-white/[.06] bg-surface px-4 text-white transition-colors duration-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
                 {Object.entries(PRESET_MAP).map(([key, p]) => (
                   <option key={key} value={key}>{p.displayName}</option>
                 ))}
               </select>
             </div>
           </div>
-          <button type="submit" className="w-full sm:w-auto px-6 py-2.5 bg-brand hover:bg-brand-500 text-white font-medium rounded-lg">
+          <Button type="submit" className="w-full sm:w-auto">
             Crear plan
-          </button>
+          </Button>
         </form>
       )}
 
       {/* Active plan dashboard */}
       {plan && (
         <>
-          <div className="bg-surface rounded-xl border border-border p-4">
+          <div className="bg-surface rounded-xl border border-white/[.06] p-4">
             <h2 className="font-medium mb-3">Tu plan</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
@@ -252,11 +301,11 @@ export default function CoachPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-400">Velocidad</p>
-                <p className="font-bold">{plan.goal === "maintain" ? "Mantenimiento" : `${plan.weekly_rate_kg} kg/sem`}</p>
+                <p className="font-bold nums">{plan.goal === "maintain" ? "Mantenimiento" : `${plan.weekly_rate_kg} kg/sem`}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400">Target kcal</p>
-                <p className="font-bold text-brand">{plan.current_kcal_target}</p>
+                <p className="font-bold text-brand nums">{plan.current_kcal_target}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400">Preset</p>
@@ -264,9 +313,9 @@ export default function CoachPage() {
               </div>
             </div>
             {targets && (
-              <div className="mt-3 pt-3 border-t border-border">
+              <div className="mt-3 pt-3 border-t border-white/[.06]">
                 <p className="text-xs text-gray-400 mb-1">Macros diarios</p>
-                <div className="flex gap-4 text-sm">
+                <div className="flex gap-4 text-sm nums">
                   <span className="text-orange-400">{targets.kcal_target} kcal</span>
                   <span className="text-blue-400">{targets.protein_target}g prot</span>
                   <span className="text-yellow-400">{targets.carbs_target}g carbs</span>
@@ -278,23 +327,23 @@ export default function CoachPage() {
 
           {/* Projection */}
           {projection && (
-            <div className="bg-surface rounded-xl border border-border p-4">
+            <div className="bg-surface rounded-xl border border-white/[.06] p-4">
               <h2 className="font-medium mb-3">Proyeccion</h2>
               <div className="grid grid-cols-3 gap-3 mb-3">
                 <div>
                   <p className="text-xs text-gray-400">Peso tendencia</p>
-                  <p className="font-bold">{projection.currentTrendWeight.toFixed(1)} kg</p>
+                  <p className="font-bold nums">{projection.currentTrendWeight.toFixed(1)} kg</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Meta</p>
-                  <p className="font-bold">{projection.goalWeightKg} kg</p>
+                  <p className="font-bold nums">{projection.goalWeightKg} kg</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Progreso</p>
-                  <p className="font-bold">{projection.progressPercentage.toFixed(0)}%</p>
+                  <p className="font-bold nums">{projection.progressPercentage.toFixed(0)}%</p>
                 </div>
               </div>
-              <div className="h-2 bg-border rounded-full overflow-hidden mb-2">
+              <div className="h-2 bg-white/[.06] rounded-full overflow-hidden mb-2">
                 <div className="h-full bg-brand rounded-full" style={{ width: `${Math.min(100, projection.progressPercentage)}%` }} />
               </div>
               <p className="text-xs text-gray-500">{projection.progressMessage}</p>
@@ -303,47 +352,47 @@ export default function CoachPage() {
           )}
 
           {/* Check-in */}
-          <div className="bg-surface rounded-xl border border-border p-4 space-y-3">
+          <div className="bg-surface rounded-xl border border-white/[.06] p-4 space-y-3">
             <h2 className="font-medium">Check-in semanal</h2>
             <p className="text-sm text-gray-400">
-              Ultimo check-in: {plan.last_checkin_date || "Nunca"} ({daysSinceCheckin} dias)
+              Ultimo check-in: {plan.last_checkin_date || "Nunca"} (<span className="nums">{daysSinceCheckin}</span> dias)
             </p>
 
             {!checkinResult && daysSinceCheckin >= 7 && (
-              <button onClick={handleCheckin} className="px-4 py-2 bg-brand hover:bg-brand-500 text-white font-medium rounded-lg">
+              <Button onClick={handleCheckin}>
                 Hacer check-in semanal
-              </button>
+              </Button>
             )}
 
             {!checkinResult && daysSinceCheckin < 7 && (
-              <p className="text-sm text-yellow-400">Espera {7 - daysSinceCheckin} dias mas para el proximo check-in</p>
+              <p className="text-sm text-warning">Espera <span className="nums">{7 - daysSinceCheckin}</span> dias mas para el proximo check-in</p>
             )}
 
             {checkinResult && (
               <div className="space-y-3">
                 {checkinResult.status === "ready" ? (
                   <>
-                    <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-3 space-y-1">
+                    <div className="bg-success/10 border border-success/20 rounded-lg p-3 space-y-1">
                       {checkinResult.explanation.allLines.map((line, i) => (
                         <p key={i} className="text-sm">{line}</p>
                       ))}
                     </div>
                     {checkinResult.wasClamped && (
-                      <p className="text-xs text-yellow-400">El cambio fue limitado por seguridad (max ±200 kcal/semana)</p>
+                      <p className="text-xs text-warning">El cambio fue limitado por seguridad (max ±200 kcal/semana)</p>
                     )}
-                    <p className="text-sm">Macros propuestos: P:{checkinResult.proposedMacros.protein}g C:{checkinResult.proposedMacros.carbs}g G:{checkinResult.proposedMacros.fat}g</p>
+                    <p className="text-sm nums">Macros propuestos: P:{checkinResult.proposedMacros.protein}g C:{checkinResult.proposedMacros.carbs}g G:{checkinResult.proposedMacros.fat}g</p>
                     <div className="flex gap-3">
-                      <button onClick={applyCheckin} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm">
+                      <Button onClick={applyCheckin} className="bg-success hover:bg-green-600">
                         Aplicar cambios
-                      </button>
-                      <button onClick={dismissCheckin} className="px-4 py-2 bg-surface-hover text-gray-400 hover:text-white rounded-lg text-sm">
+                      </Button>
+                      <Button variant="secondary" onClick={dismissCheckin}>
                         Descartar
-                      </button>
+                      </Button>
                     </div>
                   </>
                 ) : (
-                  <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-3">
-                    <p className="text-sm text-yellow-400">{checkinResult.errorMessage}</p>
+                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                    <p className="text-sm text-warning">{checkinResult.errorMessage}</p>
                   </div>
                 )}
               </div>
@@ -352,14 +401,14 @@ export default function CoachPage() {
 
           {/* Check-in history */}
           {checkins.length > 0 && (
-            <div className="bg-surface rounded-xl border border-border overflow-hidden">
-              <div className="p-4 border-b border-border">
+            <div className="bg-surface rounded-xl border border-white/[.06] overflow-hidden">
+              <div className="p-4 border-b border-white/[.06]">
                 <h2 className="font-medium">Historial de check-ins</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-gray-400 border-b border-border">
+                    <tr className="text-gray-400 border-b border-white/[.06]">
                       <th className="text-left p-3">Fecha</th>
                       <th className="text-right p-3">TDEE</th>
                       <th className="text-right p-3">Kcal prom</th>
@@ -369,11 +418,11 @@ export default function CoachPage() {
                   </thead>
                   <tbody>
                     {checkins.map((c) => (
-                      <tr key={c.id} className="border-b border-border/50">
+                      <tr key={c.id} className="border-b border-white/[.03]">
                         <td className="p-3">{c.checkin_date}</td>
-                        <td className="p-3 text-right">{c.estimated_tdee}</td>
-                        <td className="p-3 text-right">{Math.round(c.avg_daily_kcal)}</td>
-                        <td className="p-3 text-right">{c.proposed_kcal_target}</td>
+                        <td className="p-3 text-right nums">{c.estimated_tdee}</td>
+                        <td className="p-3 text-right nums">{Math.round(c.avg_daily_kcal)}</td>
+                        <td className="p-3 text-right nums">{c.proposed_kcal_target}</td>
                         <td className="p-3 text-center">{c.applied ? "Si" : "No"}</td>
                       </tr>
                     ))}
@@ -384,12 +433,12 @@ export default function CoachPage() {
           )}
 
           {/* Reset */}
-          <details className="bg-surface rounded-xl border border-border p-4">
+          <details className="bg-surface rounded-xl border border-white/[.06] p-4">
             <summary className="cursor-pointer text-sm text-gray-400">Opciones avanzadas</summary>
             <div className="mt-3">
-              <button onClick={resetPlan} className="px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded-lg text-sm">
+              <Button variant="danger" size="sm" onClick={resetPlan}>
                 Resetear plan
-              </button>
+              </Button>
             </div>
           </details>
         </>

@@ -6,6 +6,9 @@ import { saveBodyMeasurement, getBodyMeasurements } from "@/lib/db";
 import type { BodyMeasurement } from "@/lib/types";
 import { todayISO, formatDateDisplay } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 const MEASUREMENT_FIELDS = [
   { key: "cintura", label: "Cintura (cm)", unit: "cm" },
@@ -21,12 +24,13 @@ const COLORS = ["#f97316", "#60a5fa", "#4ade80", "#f472b6", "#a78bfa", "#fbbf24"
 
 export default function MedidasPage() {
   const supabase = createClient();
+  const { addToast } = useToast();
   const [userId, setUserId] = useState("");
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [fecha, setFecha] = useState(todayISO());
   const [values, setValues] = useState<Record<string, string>>({});
   const [selectedCharts, setSelectedCharts] = useState<string[]>(["cintura"]);
-  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async (uid: string) => {
     const data = await getBodyMeasurements(supabase, uid);
@@ -44,22 +48,31 @@ export default function MedidasPage() {
 
   async function handleSave() {
     const hasValue = MEASUREMENT_FIELDS.some((f) => values[f.key]);
-    if (!hasValue) return;
+    if (!hasValue) {
+      addToast("Introduce al menos una medida", "error");
+      return;
+    }
 
-    await saveBodyMeasurement(supabase, userId, fecha, {
-      cintura: values.cintura ? parseFloat(values.cintura) : null,
-      pecho: values.pecho ? parseFloat(values.pecho) : null,
-      caderas: values.caderas ? parseFloat(values.caderas) : null,
-      brazos: values.brazos ? parseFloat(values.brazos) : null,
-      muslos: values.muslos ? parseFloat(values.muslos) : null,
-      cuello: values.cuello ? parseFloat(values.cuello) : null,
-      bodyFatPct: values.body_fat_pct ? parseFloat(values.body_fat_pct) : null,
-    });
+    setSaving(true);
+    try {
+      await saveBodyMeasurement(supabase, userId, fecha, {
+        cintura: values.cintura ? parseFloat(values.cintura) : null,
+        pecho: values.pecho ? parseFloat(values.pecho) : null,
+        caderas: values.caderas ? parseFloat(values.caderas) : null,
+        brazos: values.brazos ? parseFloat(values.brazos) : null,
+        muslos: values.muslos ? parseFloat(values.muslos) : null,
+        cuello: values.cuello ? parseFloat(values.cuello) : null,
+        bodyFatPct: values.body_fat_pct ? parseFloat(values.body_fat_pct) : null,
+      });
 
-    setValues({});
-    setMessage("Guardado");
-    setTimeout(() => setMessage(""), 2000);
-    await loadData(userId);
+      setValues({});
+      addToast("Guardado", "success");
+      await loadData(userId);
+    } catch {
+      addToast("Error al guardar", "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   // Chart data
@@ -95,47 +108,48 @@ export default function MedidasPage() {
   }, [measurements]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold">Medidas Corporales</h1>
 
       {/* Form */}
-      <div className="bg-surface rounded-xl border border-border p-4 space-y-4">
+      <div className="bg-surface rounded-xl border border-white/[.06] p-4 space-y-4">
         <h2 className="font-medium">Nuevo registro</h2>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Fecha</label>
-          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg text-white" />
-        </div>
+        <Input
+          type="date"
+          label="Fecha"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          className="w-full sm:w-auto"
+        />
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {MEASUREMENT_FIELDS.map((f) => (
-            <div key={f.key}>
-              <label className="block text-xs text-gray-400 mb-1">{f.label}</label>
-              <input
-                type="number"
-                value={values[f.key] || ""}
-                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-                step="0.5"
-                placeholder={f.unit}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white text-sm"
-              />
-            </div>
+            <Input
+              key={f.key}
+              type="number"
+              label={f.label}
+              value={values[f.key] || ""}
+              onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+              step="0.5"
+              placeholder={f.unit}
+              className="text-sm"
+            />
           ))}
         </div>
-        {message && <p className="text-sm text-green-400">{message}</p>}
-        <button onClick={handleSave} className="px-6 py-2 bg-brand hover:bg-brand-500 text-white font-medium rounded-lg">
+        <Button onClick={handleSave} loading={saving}>
           Guardar
-        </button>
+        </Button>
       </div>
 
       {/* History table */}
       {measurements.length > 0 && (
-        <div className="bg-surface rounded-xl border border-border overflow-hidden">
-          <div className="p-4 border-b border-border">
+        <div className="bg-surface rounded-xl border border-white/[.06] overflow-hidden">
+          <div className="p-4 border-b border-white/[.06]">
             <h2 className="font-medium">Historial</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-gray-400 border-b border-border">
+                <tr className="text-gray-400 border-b border-white/[.06]">
                   <th className="text-left p-2">Fecha</th>
                   {MEASUREMENT_FIELDS.map((f) => (
                     <th key={f.key} className="text-right p-2">{f.label.split(" ")[0]}</th>
@@ -144,11 +158,11 @@ export default function MedidasPage() {
               </thead>
               <tbody>
                 {measurements.map((m) => (
-                  <tr key={m.id} className="border-b border-border/30">
+                  <tr key={m.id} className="border-b border-white/[.03]">
                     <td className="p-2">{formatDateDisplay(m.fecha)}</td>
                     {MEASUREMENT_FIELDS.map((f) => {
                       const val = m[f.key as keyof BodyMeasurement] as number | null;
-                      return <td key={f.key} className="p-2 text-right">{val != null ? val.toFixed(1) : "—"}</td>;
+                      return <td key={f.key} className="p-2 text-right nums">{val != null ? val.toFixed(1) : "—"}</td>;
                     })}
                   </tr>
                 ))}
@@ -160,23 +174,23 @@ export default function MedidasPage() {
 
       {/* Charts */}
       {chartData.length > 0 && (
-        <div className="bg-surface rounded-xl border border-border p-4 space-y-3">
+        <div className="bg-surface rounded-xl border border-white/[.06] p-4 space-y-3">
           <h2 className="font-medium">Graficas</h2>
           <div className="flex flex-wrap gap-2">
             {MEASUREMENT_FIELDS.map((f) => (
-              <button
+              <Button
                 key={f.key}
+                variant={selectedCharts.includes(f.key) ? "primary" : "ghost"}
+                size="sm"
                 onClick={() => {
                   setSelectedCharts((prev) =>
                     prev.includes(f.key) ? prev.filter((k) => k !== f.key) : [...prev, f.key]
                   );
                 }}
-                className={`text-xs px-2 py-1 rounded ${
-                  selectedCharts.includes(f.key) ? "bg-brand/20 text-brand" : "bg-background text-gray-500"
-                }`}
+                className="text-xs"
               >
                 {f.label.split(" ")[0]}
-              </button>
+              </Button>
             ))}
           </div>
           {selectedCharts.length > 0 && (
@@ -206,7 +220,7 @@ export default function MedidasPage() {
 
       {/* Comparison */}
       {comparison && comparison.length > 0 && (
-        <div className="bg-surface rounded-xl border border-border p-4">
+        <div className="bg-surface rounded-xl border border-white/[.06] p-4">
           <h2 className="font-medium mb-3">Comparativa</h2>
           <p className="text-xs text-gray-400 mb-2">
             {formatDateDisplay(measurements[measurements.length - 1].fecha)} vs {formatDateDisplay(measurements[0].fecha)}
@@ -215,9 +229,9 @@ export default function MedidasPage() {
             {comparison.map((c) => (
               <div key={c.label} className="flex items-center justify-between text-sm">
                 <span className="text-gray-400">{c.label.split(" (")[0]}</span>
-                <span>
+                <span className="nums">
                   {c.old.toFixed(1)} → {c.new.toFixed(1)}{" "}
-                  <span className={c.diff < 0 ? "text-green-400" : c.diff > 0 ? "text-red-400" : "text-gray-500"}>
+                  <span className={c.diff < 0 ? "text-success" : c.diff > 0 ? "text-danger" : "text-gray-500"}>
                     ({c.diff > 0 ? "+" : ""}{c.diff.toFixed(1)} {c.unit})
                   </span>
                 </span>

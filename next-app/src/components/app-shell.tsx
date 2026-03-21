@@ -10,6 +10,7 @@ import {
   Target,
   ChefHat,
   Ruler,
+  User,
   LogOut,
   ChevronUp,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/targets", label: "Targets", icon: Target },
   { href: "/recetas", label: "Recetas", icon: ChefHat },
   { href: "/medidas", label: "Medidas", icon: Ruler },
+  { href: "/perfil", label: "Perfil", icon: User },
 ];
 
 export default function AppShell({

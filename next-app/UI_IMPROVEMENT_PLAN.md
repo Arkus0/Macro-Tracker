@@ -179,11 +179,11 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 5: Formularios y Feedback ✅ COMPLETADA (parcial)
+## Fase 5: Formularios y Feedback ✅ COMPLETADA
 
 **Objetivo**: Inputs consistentes y feedback visual para todas las acciones.
 
-**Estado**: Toast system implementado y conectado a food-log. Falta migrar formularios de otras paginas a componentes Input/Button.
+**Estado**: COMPLETADA. Toast integrado en TODAS las paginas. Button/Input reutilizables migrados en login, peso, medidas, coach, targets, recetas. `.nums` aplicado consistentemente.
 
 ### 5.1 Formularios
 1. **Usar componentes Input/Button** de Fase 1 en todas las paginas
@@ -211,11 +211,13 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 6 (Opcional): Animaciones y Microinteracciones
+## Fase 6: Animaciones y Microinteracciones ✅ COMPLETADA (ligera)
 
 **Objetivo**: Pulido final con animaciones sutiles.
 
-### Ideas:
+**Estado**: COMPLETADA (version ligera). Implementado `animate-fade-in` (CSS puro, 200ms ease-out) en todas las paginas. `prefers-reduced-motion` respetado. No se implementaron animaciones pesadas (counters, confetti, pull-to-refresh).
+
+### Ideas (implementadas/descartadas):
 1. **Page transitions**: Fade-in al navegar entre paginas
 2. **Number animations**: Counters animados en stats del dashboard
 3. **Pull-to-refresh**: En food log y peso (si se implementa como PWA)
@@ -238,9 +240,9 @@ Sesion 1: Fase 1 (fundacion) — ✅ COMPLETADA
 Sesion 2: Fase 2 (navegacion) — ✅ COMPLETADA
 Sesion 3: Fase 4.1 (macro display) — ✅ COMPLETADA
 Sesion 4: Fase 3 (dashboard) — ✅ COMPLETADA
-Sesion 5: Fase 5 (formularios + toast) — ✅ COMPLETADA (toast + food-log; falta migrar forms de otras paginas)
+Sesion 5: Fase 5 (formularios + toast) — ✅ COMPLETADA (toast + forms migrados a Button/Input)
 Sesion 6: Fase 4.2 (food log) — ✅ COMPLETADA
-Sesion 7: Fase 6 (animaciones) — impacto: BAJO, esfuerzo: VARIABLE
+Sesion 7: Fase 6 (animaciones) — ✅ COMPLETADA (version ligera: fade-in CSS)
 ```
 
 ## Referencia de diseño

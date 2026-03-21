@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { getWeightEntries, getActiveTargets } from "@/lib/db";
-import { Scale, Flame, Target, UtensilsCrossed, BarChart3, Brain } from "lucide-react";
+import { getWeightEntries, getActiveTargets, getUserProfile } from "@/lib/db";
+import { Scale, Flame, Target, UtensilsCrossed, BarChart3, Brain, Ruler } from "lucide-react";
+import { calculateBMI, getBMICategory } from "@/lib/algorithms/tdee-formula";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -27,9 +28,10 @@ export default async function HomePage() {
 
   if (!user) return null;
 
-  const [latestWeight, targets] = await Promise.all([
+  const [latestWeight, targets, profile] = await Promise.all([
     getWeightEntries(supabase, user.id, 1),
     getActiveTargets(supabase, user.id),
+    getUserProfile(supabase, user.id),
   ]);
 
   const lastEntry = latestWeight[0];
@@ -39,8 +41,13 @@ export default async function HomePage() {
   const username = user.email?.split("@")[0];
   const greeting = getGreeting();
 
+  // Calculate BMI if we have weight + height
+  const bmi = peso && profile?.height_cm
+    ? calculateBMI(peso, Number(profile.height_cm))
+    : null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">
           {greeting}{username ? `, ${username}` : ""}
@@ -50,7 +57,7 @@ export default async function HomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard
           icon={<Scale className="text-blue-400" size={20} />}
           label="Ultimo peso"
@@ -69,6 +76,14 @@ export default async function HomePage() {
           value={targetKcal ? `${targetKcal}` : "—"}
           highlight
         />
+        {bmi && (
+          <StatCard
+            icon={<Ruler className="text-purple-400" size={20} />}
+            label="IMC"
+            value={bmi.toFixed(1)}
+            sub={getBMICategory(bmi)}
+          />
+        )}
       </div>
 
       <div className="bg-surface-1 rounded-xl p-4 border border-white/[.06]">

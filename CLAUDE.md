@@ -43,6 +43,7 @@ next-app/                           # App Next.js (produccion)
         targets/page.tsx            # Macro targets + cycling config
         recetas/page.tsx            # Recetas multi-ingrediente
         medidas/page.tsx            # Medidas corporales + graficas
+        perfil/page.tsx             # Perfil usuario: datos fisicos, IMC, TDEE, stats
       api/
         ai-estimate/route.ts        # Claude API: texto -> macros
         label-scan/route.ts         # Claude Vision: foto etiqueta -> macros
@@ -65,12 +66,14 @@ next-app/                           # App Next.js (produccion)
         weight-trend.ts             # EMA + Holt-Winters + predicciones
         adaptive-coach.ts           # Check-ins, TDEE, 6 macro presets
         goal-projection.ts          # ETA, progreso %, pace ratio
+        tdee-formula.ts             # Mifflin-St Jeor (TDEE formula, fallback)
     middleware.ts                    # Route protection
   supabase/
     migrations/
       001_initial_schema.sql        # 12 tablas + RLS + indices
       002_macro_cycling.sql         # day_type_schedule + day_type_overrides
       003_rpc_functions.sql         # get_food_daily_totals, get_frequent_foods
+      004_user_profiles.sql         # user_profiles table + RLS
 
 # Legacy (Streamlit) - en la raiz del repo
 app.py                              # Home + auth gate
@@ -84,7 +87,7 @@ pages/                              # 7 paginas Streamlit
 
 ### Requisitos previos
 1. Crear proyecto en [supabase.com](https://supabase.com)
-2. Ejecutar las 3 migraciones SQL en orden (en Supabase SQL Editor)
+2. Ejecutar las 4 migraciones SQL en orden (en Supabase SQL Editor)
 3. Obtener API key de Anthropic (para AI features)
 
 ### Setup local
@@ -117,7 +120,7 @@ ANTHROPIC_API_KEY=tu-api-key
 
 Todas las tablas tienen `user_id UUID REFERENCES auth.users(id)` y RLS policies con `auth.uid() = user_id`.
 
-**14 tablas:**
+**15 tablas:**
 - `weight_entries` — Peso y kcal diarias (UNIQUE user_id+fecha, UPSERT)
 - `food_log` — Registro detallado de comidas con macros por tipo de comida
 - `food_catalog` — Catalogo personal de alimentos favoritos
@@ -127,6 +130,7 @@ Todas las tablas tienen `user_id UUID REFERENCES auth.users(id)` y RLS policies 
 - `meal_templates` / `meal_template_items` — Templates de comidas reutilizables
 - `checkin_history` — Historial de check-ins semanales
 - `body_measurements` — Medidas corporales (7 metricas + body fat %)
+- `user_profiles` — Perfil fisico (altura, año nacimiento, sexo, nivel actividad) — UNIQUE user_id
 - `day_type_schedule` — Patron semanal entrenamiento/descanso (UNIQUE user_id+day_of_week)
 - `day_type_overrides` — Excepciones por fecha (UNIQUE user_id+fecha)
 
@@ -145,6 +149,7 @@ Funciones clave:
 - `getActiveTargets()` — con fallback: day_type especifico → 'default'
 - `getDayTypeForDate()` — override > schedule > 'default'
 - `saveDaySchedule()`, `getDaySchedule()`, `saveDayOverride()`
+- `getUserProfile()`, `saveUserProfile()` — UPSERT con `onConflict: "user_id"`
 
 ## Food Log — 7 metodos de entrada
 
@@ -198,6 +203,12 @@ TDEE = Kcal_promedio_diarias - ((CambioPesoTendencia * 7700) / Dias)
 ### Goal Projection (`goal-projection.ts`)
 - ETA en dias, progreso % (0-150%), pace ratio
 - Linea de proyeccion para charts
+
+### TDEE Formula (`tdee-formula.ts`) — SECUNDARIO
+- Mifflin-St Jeor: BMR * factor de actividad
+- **Fuente de verdad**: TDEE empirico del coach (calculado con datos reales)
+- **Formula solo como fallback**: cuando no hay datos del coach o son antiguos (>30 dias)
+- Incluye funciones: `calculateFormulaTDEE()`, `calculateBMI()`, `getBMICategory()`
 
 ## AI Features
 
@@ -266,6 +277,7 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 | Coach adaptativo | `adaptive_coach_service.dart` | `lib/algorithms/adaptive-coach.ts` |
 | Weight trend | `weight_trend_calculator.dart` | `lib/algorithms/weight-trend.ts` |
 | Goal projection | `goal_projection_model.dart` | `lib/algorithms/goal-projection.ts` |
+| TDEE formula | N/A (nuevo) | `lib/algorithms/tdee-formula.ts` |
 
 ## FUNCIONALIDADES
 
@@ -306,7 +318,9 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 | UI Fase 2: Navegacion | OK | Bottom nav h-20, active states visibles, ChevronUp en Mas, border-white/[.06] |
 | UI Fase 3: Dashboard | OK | Greeting por hora, StatCards text-3xl + .nums, temporal context, skeleton loader |
 | UI Fase 4: Macro Display + Food Log | OK | Barras h-2.5 solidas con animacion, warning >100%, tabs mejorados, .nums |
-| UI Fase 5: Toast + Feedback | OK | ToastProvider (success/error/info/warning), auto-dismiss 3s, food-log conectado |
+| UI Fase 5: Toast + Feedback | OK | ToastProvider en todas las paginas, Button/Input reutilizables en todos los forms, .nums consistente |
+| UI Fase 6: Animaciones | OK | animate-fade-in CSS en todas las paginas, motion-reduce respetado |
+| Pantalla de Perfil | OK | Datos fisicos, IMC, TDEE (empirico + formula), fase, medidas, estadisticas |
 
 ### PENDIENTE
 
@@ -320,15 +334,15 @@ Plan detallado en `next-app/UI_IMPROVEMENT_PLAN.md`. Resumen de fases:
 | ~~Fase 2: Navegacion~~ | ~~Bottom nav mas grande (h-20), active states visibles, transiciones suaves~~ | ~~BAJA~~ HECHO |
 | ~~Fase 3: Dashboard + Cards~~ | ~~Skeleton loaders, elevacion en cards, jerarquia visual en stats~~ | ~~MEDIA~~ HECHO |
 | ~~Fase 4: Food Log~~ | ~~Progress bars mas gruesas con animacion, warning visual al pasarse de macros~~ | ~~BAJA~~ HECHO |
-| ~~Fase 5: Formularios~~ | ~~Toast system, feedback animado~~ | ~~MEDIA~~ HECHO (toast; falta migrar forms) |
+| ~~Fase 5: Formularios~~ | ~~Toast system + migracion forms a Button/Input~~ | ~~MEDIA~~ HECHO |
+| ~~Fase 6: Animaciones~~ | ~~animate-fade-in CSS, motion-reduce~~ | ~~BAJA~~ HECHO |
 
 #### PRIORIDAD MEDIA
 
 | Feature | Descripcion | Complejidad |
 |---------|-------------|-------------|
 | **Micronutrientes en food log** | Tracking de fibra, azucar, grasa sat, sodio en cada comida | MEDIA |
-| **Base de datos verificada** | DB curada (Open Food Facts no siempre es preciso) | ALTA |
-| **Pantalla de perfil** | Peso, altura, sexo, nivel actividad — necesario para TDEE formula-based como alternativa al empirico | MEDIA |
+| **Base de datos verificada** | DB curada alternativa a OFF — plan en `next-app/VERIFIED_FOOD_DB_PLAN.md` | ALTA |
 
 #### PRIORIDAD BAJA — Nice to have
 
