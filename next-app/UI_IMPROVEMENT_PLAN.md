@@ -66,66 +66,50 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 
 ---
 
-## Fase 1: Fundacion (tailwind.config + componentes base)
+## Fase 1: Fundacion (tailwind.config + componentes base) ✅ COMPLETADA
 
 **Objetivo**: Establecer la base visual antes de tocar paginas individuales.
 
-### 1.1 Tipografia
-- Importar font **Inter** o **Geist** via `next/font/google` en `layout.tsx`
-- Aplicar `antialiased` al body
-- Definir escala tipografica semantica en Tailwind:
-  ```
-  heading-xl: text-3xl font-bold tracking-tight
-  heading-lg: text-2xl font-bold
-  heading-md: text-lg font-semibold
-  body:       text-sm text-gray-300
-  caption:    text-xs text-gray-500
-  ```
+**Estado**: IMPLEMENTADA. Todos los items completados:
 
-### 1.2 Colores semanticos en tailwind.config
-- Añadir `success`, `danger`, `warning`, `info` al theme
-- Añadir `surface-elevated` para cards con profundidad
-- Definir variantes de opacidad: `brand-hover`, `brand-muted`
+### 1.1 Tipografia ✅
+- ✅ Inter importado via `next/font/google` en `layout.tsx` con variable CSS `--font-inter`
+- ✅ `antialiased` aplicado al body via `globals.css`
+- ✅ `fontFamily.sans` configurado en tailwind.config con Inter como primera opcion
 
-### 1.3 Elevacion y bordes (dark mode strategy)
-- En dark mode, sombras son casi invisibles — usar **lightness + bordes** para profundidad
-- Añadir en tailwind.config:
-  ```
-  colors: {
-    'surface-1': '#161B22',  // cards
-    'surface-2': '#1C2128',  // raised elements
-    'surface-3': '#22272E',  // modals, dropdowns
-  }
-  boxShadow: {
-    glow: '0 0 20px rgba(255, 107, 53, 0.15)',  // solo para hover en brand elements
-  }
-  ```
-- Patron de card: `bg-surface-1 border border-white/[.06] rounded-xl` (sin shadow)
+### 1.2 Colores semanticos en tailwind.config ✅
+- ✅ `success` (#10B981), `danger` (#EF4444), `warning` (#F59E0B), `info` (#3B82F6) en theme
+- ✅ `surface-1`, `surface-2`, `surface-3` para elevacion
+- ✅ `surface-hover` para estados hover
 
-### 1.4 Componente Button reutilizable
-- **Archivo**: `src/components/ui/button.tsx`
-- Variantes: `primary` (brand), `secondary` (surface-2), `ghost` (transparente), `danger`
-- Tamaños: `sm` (h-8), `md` (h-10), `lg` (h-12)
-- Estados: hover (`duration-100`), disabled, loading (spinner)
-- Usar `class-variance-authority` (ya instalado)
-- Spec: `h-10 px-5 rounded-lg text-[15px] font-medium`
+### 1.3 Elevacion y bordes (dark mode strategy) ✅
+- ✅ `surface-1` (#161B22), `surface-2` (#1C2128), `surface-3` (#22272E) en tailwind.config
+- ✅ `shadow-glow` (0 0 20px rgba(255, 107, 53, 0.15)) para hover en brand elements
+- ✅ Patron de card: `bg-surface-1 border border-white/[.06] rounded-xl` (sin shadow)
 
-### 1.5 Componente Input reutilizable
-- **Archivo**: `src/components/ui/input.tsx`
-- Focus state prominente: `focus:ring-2 focus:ring-brand` (sin opacity)
-- Label integrado, mensaje de error opcional
-- Variantes: default, error, success
-- Spec: `h-11 px-4 rounded-lg border-[1.5px] border-white/[.06]`
+### 1.4 Componente Button reutilizable ✅
+- ✅ `src/components/ui/button.tsx` con class-variance-authority
+- ✅ 4 variantes: `primary` (brand), `secondary` (surface-2), `ghost`, `danger`
+- ✅ 3 tamaños: `sm` (h-8), `md` (h-10), `lg` (h-12)
+- ✅ Estados: hover (duration-100), disabled (opacity-50), loading (spinner SVG animado)
+- ✅ forwardRef + tipos exportados (ButtonProps, buttonVariants)
 
-### 1.6 Tipografia numerica
-- Añadir clase utilitaria `tabular-nums` a todos los componentes que muestran numeros
-- Critico para: macro-display, food log totals, peso, analytics, coach stats
+### 1.5 Componente Input reutilizable ✅
+- ✅ `src/components/ui/input.tsx` con forwardRef
+- ✅ Focus state: `focus:ring-2 focus:ring-brand focus:border-transparent`
+- ✅ Label integrado con `htmlFor` automatico
+- ✅ Mensaje de error con `text-danger` + borde `border-danger`
+- ✅ Spec: `h-11 px-4 rounded-lg border-[1.5px] border-white/[.06]`
 
-### Archivos a modificar:
-- `tailwind.config.js` — colores, sombras, tipografia
-- `src/app/layout.tsx` — importar font
-- `src/components/ui/button.tsx` — nuevo
-- `src/components/ui/input.tsx` — nuevo
+### 1.6 Tipografia numerica ✅
+- ✅ Clase utilitaria `.nums` (font-variant-numeric: tabular-nums) en globals.css
+
+### Archivos modificados:
+- ✅ `tailwind.config.js` — colores semanticos, superficies, sombra glow, fontFamily
+- ✅ `src/app/layout.tsx` — Inter font importado con variable CSS
+- ✅ `src/app/globals.css` — antialiased, .nums utility
+- ✅ `src/components/ui/button.tsx` — nuevo
+- ✅ `src/components/ui/input.tsx` — nuevo
 
 ---
 
@@ -242,7 +226,7 @@ Table:   cells px-3 py-2 text-[13px] tabular-nums border-b border-white/[.06]
 ## Orden de implementacion recomendado
 
 ```
-Sesion 1: Fase 1 (fundacion) — impacto: ALTO, esfuerzo: MEDIO
+Sesion 1: Fase 1 (fundacion) — ✅ COMPLETADA
 Sesion 2: Fase 2 (navegacion) — impacto: ALTO, esfuerzo: BAJO
 Sesion 3: Fase 4.1 (macro display) — impacto: ALTO, esfuerzo: BAJO
 Sesion 4: Fase 3 (dashboard) — impacto: MEDIO, esfuerzo: MEDIO

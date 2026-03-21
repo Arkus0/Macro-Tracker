@@ -30,7 +30,7 @@ La version Next.js es la activa y reemplaza a la version Streamlit.
 next-app/                           # App Next.js (produccion)
   src/
     app/
-      layout.tsx                    # Root layout, dark mode, system font
+      layout.tsx                    # Root layout, dark mode, Inter font (next/font)
       login/page.tsx                # Login/registro con Supabase Auth
       auth/callback/route.ts        # Auth callback: intercambia code por sesion
       (authenticated)/
@@ -50,6 +50,9 @@ next-app/                           # App Next.js (produccion)
     components/
       app-shell.tsx                 # Sidebar (desktop) + bottom nav (mobile)
       macro-display.tsx             # Barras de progreso kcal/P/C/G
+      ui/
+        button.tsx                  # Button reutilizable (CVA: primary/secondary/ghost/danger, sm/md/lg, loading)
+        input.tsx                   # Input reutilizable (label, error state, focus ring)
     lib/
       db.ts                         # Supabase data access layer (~30 funciones)
       types.ts                      # Interfaces TypeScript para todas las entidades
@@ -232,6 +235,10 @@ Todos los API routes requieren autenticacion (devuelven 401 sin sesion valida).
 - Dark theme por defecto (bg: #0E1117, brand: #FF6B35)
 - Fechas como ISO strings (YYYY-MM-DD)
 - Supabase client se crea por componente via `createClient()` (browser) o `createServerClient()` (server)
+- Componentes UI reutilizables en `src/components/ui/` (Button con CVA, Input con label/error)
+- Colores semanticos: `success`, `danger`, `warning`, `info` + superficies `surface-1/2/3`
+- Elevacion en dark mode via lightness + bordes (`border-white/[.06]`), NO sombras
+- Numeros legibles: usar clase `.nums` (tabular-nums) en todas las cifras
 
 ## Dependencias principales
 
@@ -295,6 +302,7 @@ El repositorio `/home/user/Juan-Tracker` (Flutter/Dart) se uso como referencia p
 | Medidas corporales | OK | 7 metricas, graficas multi-linea, comparativa |
 | Copiar dia anterior | OK | En food log |
 | Promedios semanales | OK | Ultimos 7 dias de macros |
+| UI Fase 1: Fundacion | OK | Inter font, colores semanticos, surface levels, Button/Input con CVA, `.nums` utility |
 
 ### PENDIENTE
 
@@ -304,7 +312,7 @@ Plan detallado en `next-app/UI_IMPROVEMENT_PLAN.md`. Resumen de fases:
 
 | Fase | Descripcion | Complejidad |
 |------|-------------|-------------|
-| **Fase 1: Fundacion** | Font (Inter/Geist), colores semanticos en Tailwind, componentes Button/Input reutilizables | MEDIA |
+| ~~Fase 1: Fundacion~~ | ~~Font (Inter), colores semanticos en Tailwind, componentes Button/Input reutilizables~~ | ~~MEDIA~~ HECHO |
 | **Fase 2: Navegacion** | Bottom nav mas grande (h-20), active states visibles, transiciones suaves | BAJA |
 | **Fase 3: Dashboard + Cards** | Skeleton loaders, sombras/elevacion en cards, jerarquia visual en stats | MEDIA |
 | **Fase 4: Food Log** | Progress bars mas gruesas con animacion, warning visual al pasarse de macros | BAJA |
